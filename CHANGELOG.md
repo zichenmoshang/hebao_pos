@@ -2,6 +2,14 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.1.0](https://github.com/zichenmoshang/hebao_pos/compare/v1.0.0...v1.1.0) (2026-10-02)
+
+
+### Features
+
+* add brand launcher icon, splash screen and built-in product images ([f131be2](https://github.com/zichenmoshang/hebao_pos/commit/f131be2e7f1983f288745ea9c914a8012935a5da))
+* initial commit of hebao_pos offline cashier app ([8014817](https://github.com/zichenmoshang/hebao_pos/commit/8014817568262acbc69a7f9939904ea4e7abbe4a))
+
 ## [Unreleased]
 
 ### Added
