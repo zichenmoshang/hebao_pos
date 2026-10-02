@@ -240,6 +240,51 @@ class CostRepository {
         name: row.name,
         isActive: row.isActive == 1,
       );
+
+  /// 游标分页取区间采购流水（按发生日期、id 倒序）。
+  /// [cursorOccurredOn]/[cursorId] 为上一页最后一条，null 取首页。
+  Future<List<CostRecord>> pagedRecordsInRange(
+    DateRange range, {
+    required int limit,
+    int? cursorOccurredOn,
+    int? cursorId,
+  }) async {
+    final records = _db.costRecords;
+    final categories = _db.costCategories;
+    final q = _db.select(records).join([
+      innerJoin(categories, categories.id.equalsExp(records.categoryId)),
+    ])
+      ..where(
+        records.occurredOn.isBetweenValues(range.start, range.end - 1),
+      )
+      ..orderBy([
+        OrderingTerm(expression: records.occurredOn, mode: OrderingMode.desc),
+        OrderingTerm(expression: records.id, mode: OrderingMode.desc),
+      ]);
+
+    final co = cursorOccurredOn;
+    final ci = cursorId;
+    if (co != null && ci != null) {
+      q.where(
+        records.occurredOn.isSmallerThanValue(co) |
+            (records.occurredOn.equals(co) & records.id.isSmallerThanValue(ci)),
+      );
+    }
+    q.limit(limit);
+
+    final rows = await q.get();
+    return [
+      for (final row in rows)
+        CostRecord(
+          id: row.readTable(records).id,
+          categoryId: row.readTable(records).categoryId,
+          categoryName: row.readTable(categories).name,
+          amountCents: row.readTable(records).amountCents,
+          occurredOnMs: row.readTable(records).occurredOn,
+          note: row.readTable(records).note,
+        ),
+    ];
+  }
 }
 
 final costRepositoryProvider = Provider<CostRepository>((ref) {

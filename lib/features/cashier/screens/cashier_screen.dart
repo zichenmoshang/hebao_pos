@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,6 +27,17 @@ class CashierScreen extends ConsumerStatefulWidget {
 class _CashierScreenState extends ConsumerState<CashierScreen> {
   late final KeepAwakeController _keepAwake = KeepAwakeController(ref);
 
+  /// 结账提交中标志：仅为了拦住 await 窗口内的快速连点，防重复落库
+  bool _isCheckoutInFlight = false;
+
+  /// 提交是否已超时：超时只释放锁、保留当前订单，避免按钮永久不可用
+  bool _checkoutTimedOut = false;
+
+  Timer? _checkoutTimeoutTimer;
+
+  /// 本地事务正常在几十毫秒内完成，500ms 超时仅作兜底，防锁永久不释放
+  static const _checkoutTimeout = Duration(milliseconds: 500);
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +46,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
 
   @override
   void dispose() {
+    _checkoutTimeoutTimer?.cancel();
     _keepAwake.dispose();
     super.dispose();
   }
@@ -51,16 +65,49 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
   }
 
   Future<void> _checkout() async {
-    final notifier = ref.read(currentOrderProvider.notifier);
+    // 快速连点防护：上一笔尚未落库完成时直接忽略后续点击
+    if (_isCheckoutInFlight) return;
+
     final order = ref.read(currentOrderProvider);
     if (order.isEmpty) return;
 
-    // 先落库（单事务写 orders + 明细），成功后再清空内存订单
+    final notifier = ref.read(currentOrderProvider.notifier);
     final lines = order.lines;
-    await ref.read(orderRepositoryProvider).checkout(lines);
-    AppHaptics.medium(ref);
-    notifier.clear();
-    ref.invalidate(todaySummaryProvider);
+
+    setState(() {
+      _isCheckoutInFlight = true;
+      _checkoutTimedOut = false;
+    });
+    // 超时兜底：即便底层异常卡死也强制释放锁，按钮不会永久不可用
+    _checkoutTimeoutTimer = Timer(_checkoutTimeout, () {
+      if (mounted) {
+        setState(() {
+          _isCheckoutInFlight = false;
+          _checkoutTimedOut = true;
+        });
+      }
+    });
+
+    try {
+      // 先落库（单事务写 orders + 明细），成功后再清空内存订单
+      await ref.read(orderRepositoryProvider).checkout(lines);
+      _checkoutTimeoutTimer?.cancel();
+      // 超时期间已释放锁，后续完成回调不再触碰订单状态
+      if (_checkoutTimedOut) return;
+
+      AppHaptics.medium(ref);
+      notifier.clear();
+      if (mounted) ref.invalidate(todaySummaryProvider);
+    } catch (_) {
+      // 失败不弹提示：静默清掉这一单，保证快速计价流程不被阻塞
+      _checkoutTimeoutTimer?.cancel();
+      if (_checkoutTimedOut) return;
+      notifier.clear();
+    } finally {
+      if (mounted && !_checkoutTimedOut) {
+        setState(() => _isCheckoutInFlight = false);
+      }
+    }
   }
 
   @override
@@ -79,14 +126,13 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     final today = todayAsync.value ?? const OrderSummary();
 
     final selectedId = order.selectedProductId;
+    // 选中商品已从在售列表消失（停用）时不再回退到首个商品，返回 null
     final selectedName = selectedId == null
         ? null
         : products
-              .firstWhere(
-                (p) => p.id == selectedId,
-                orElse: () => products.first,
-              )
-              .name;
+              .where((p) => p.id == selectedId)
+              .firstOrNull
+              ?.name;
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -109,7 +155,9 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                 _TopBar(today: today),
                 _AmountPanel(order: order),
                 Expanded(
-                  child: LayoutBuilder(
+                  child: products.isEmpty
+                      ? const _EmptyProductsView()
+                      : LayoutBuilder(
                     builder: (context, constraints) {
                       final spacing = UiScale.scale(10);
                       final cellW =
@@ -162,7 +210,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                 ),
                 SizedBox(height: pad),
                 QuickQuantityBar(
-                  hasSelection: selectedId != null,
+                  hasSelection: selectedName != null,
                   selectedName: selectedName,
                   onPick: notifier.setSelectedQuantity,
                   onClear: () => notifier.setSelectedQuantity(0),
@@ -170,7 +218,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                 ),
                 SizedBox(height: pad),
                 _CheckoutBar(
-                  enabled: !order.isEmpty,
+                  enabled: !order.isEmpty && !_isCheckoutInFlight,
                   onCheckout: _checkout,
                   onClearAll: notifier.clear,
                 ),
@@ -178,6 +226,40 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 全部商品停用 / 无在售商品时的空态，避免空网格除零与崩溃
+class _EmptyProductsView extends StatelessWidget {
+  const _EmptyProductsView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.inventory_2_outlined,
+              color: AppColors.textMuted, size: 48),
+          SizedBox(height: UiScale.scale(12)),
+          Text(
+            '暂无在售商品',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: UiScale.scale(15),
+            ),
+          ),
+          SizedBox(height: UiScale.scale(6)),
+          Text(
+            '可在抽屉 → 设置 → 商品管理中新增或启用',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: UiScale.scale(13),
+            ),
+          ),
+        ],
       ),
     );
   }

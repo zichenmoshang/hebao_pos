@@ -31,5 +31,10 @@ void main() {
       expect(formatPriceCents(250), '¥2.5');
       expect(formatPriceCents(1234), '¥12.3');
     });
+
+    test('非整十分四舍五入', () {
+      expect(formatPriceCents(255), '¥2.6');
+      expect(formatPriceCents(254), '¥2.5');
+    });
   });
 }

@@ -21,10 +21,28 @@ class CostScreen extends ConsumerStatefulWidget {
 }
 
 class _CostScreenState extends ConsumerState<CostScreen> {
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('zh_CN');
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(pagedCostRecordsProvider.notifier).loadMore();
+    }
   }
 
   Future<void> _openForm({CostRecord? existing}) async {
@@ -75,6 +93,8 @@ class _CostScreenState extends ConsumerState<CostScreen> {
   void _invalidate() {
     ref.invalidate(costTotalProvider);
     ref.invalidate(costRecordsProvider);
+    // 分页流水随区间/数据变化重建首页
+    ref.invalidate(pagedCostRecordsProvider);
     ref.invalidate(activeCostCategoriesProvider);
   }
 
@@ -82,7 +102,7 @@ class _CostScreenState extends ConsumerState<CostScreen> {
   Widget build(BuildContext context) {
     UiScale.init(context);
     final total = ref.watch(costTotalProvider);
-    final records = ref.watch(costRecordsProvider);
+    final paged = ref.watch(pagedCostRecordsProvider);
     final pad = UiScale.scale(12);
 
     return Scaffold(
@@ -110,7 +130,8 @@ class _CostScreenState extends ConsumerState<CostScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: EdgeInsets.all(pad),
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(pad, pad, pad, UiScale.scale(72)),
           children: [
             const CostFilterBar(),
             SizedBox(height: pad),
@@ -123,14 +144,14 @@ class _CostScreenState extends ConsumerState<CostScreen> {
               data: (cents) => _TotalCard(amountCents: cents),
             ),
             SizedBox(height: pad),
-            records.when(
+            paged.when(
               loading: () => const SizedBox(
                 height: 120,
                 child: Center(child: CircularProgressIndicator()),
               ),
               error: (e, _) => Text('读取失败：$e'),
-              data: (list) {
-                if (list.isEmpty) {
+              data: (state) {
+                if (state.items.isEmpty) {
                   return Padding(
                     padding: EdgeInsets.symmetric(vertical: UiScale.scale(40)),
                     child: Center(
@@ -146,7 +167,7 @@ class _CostScreenState extends ConsumerState<CostScreen> {
                 }
                 return Column(
                   children: [
-                    for (final record in list)
+                    for (final record in state.items)
                       Padding(
                         padding: EdgeInsets.only(bottom: UiScale.scale(8)),
                         child: Dismissible(
@@ -174,11 +195,21 @@ class _CostScreenState extends ConsumerState<CostScreen> {
                           ),
                         ),
                       ),
+                    if (state.hasMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
                   ],
                 );
               },
             ),
-            SizedBox(height: UiScale.scale(72)),
           ],
         ),
       ),

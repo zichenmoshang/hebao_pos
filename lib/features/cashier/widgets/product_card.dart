@@ -63,6 +63,15 @@ class ProductCard extends StatelessWidget {
                       Image.file(
                         File(product.imagePath!),
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            ColoredBox(
+                          color: const Color(0xFFF2F1EE),
+                          child: Icon(
+                            _placeholderIcons[product.id] ?? Icons.restaurant,
+                            size: UiScale.scale(64),
+                            color: AppColors.textMuted,
+                          ),
+                        ),
                       )
                     else
                       ColoredBox(

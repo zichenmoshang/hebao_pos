@@ -14,10 +14,11 @@ String formatCents(int cents) {
   return '¥$whole.$fraction';
 }
 
-/// 商品卡片单价：始终保留一位小数，如 ¥0.8/个、¥2.0/杯
+/// 商品卡片单价：始终保留一位小数，如 ¥0.8/个、¥2.0/杯。
+/// 非整十分时四舍五入（255 分 → ¥2.6），与实际单价更贴近
 String formatPriceCents(int cents) {
   final whole = cents ~/ 100;
-  final remainder = cents % 100;
-  final fraction = (remainder ~/ 10).toString();
+  final roundedTenths = (cents / 10).round();
+  final fraction = (roundedTenths % 10).toString();
   return '¥$whole.$fraction';
 }

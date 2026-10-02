@@ -14,6 +14,7 @@ import '../../../core/services/csv_export_service.dart';
 import '../../../core/settings/settings_provider.dart';
 import '../../../core/utils/date_range.dart';
 import '../../../shared/widgets/app_date_picker_dialog.dart';
+import '../../cashier/providers/current_order_provider.dart';
 import '../../products/screens/products_screen.dart';
 import '../widgets/screen_idle_picker_sheet.dart';
 
@@ -90,6 +91,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     await ref.read(appDatabaseProvider).clearAllData();
+    // 清库前同步清空内存中的未结账订单，避免旧 productId 在新库触发外键失败或数据污染
+    ref.read(currentOrderProvider.notifier).clear();
     // 清库后重新写入默认 5 个商品种子（商品管理页直接读表、不会自动建种子）
     await ref.read(productRepositoryProvider).ensureSeeded();
     // 失效数据库实例，所有依赖它的商品 / 统计 / 成本 provider 均会重算
