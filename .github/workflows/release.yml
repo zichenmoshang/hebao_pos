@@ -27,14 +27,18 @@ jobs:
       # Secret 后，Release 将使用正式签名；未配置时自动回退 debug 签名。
       #   ANDROID_KEYSTORE_BASE64  base64 编码的 keystore（base64 -i release.jks）
       #   KEY_ALIAS / STORE_PASSWORD / KEY_PASSWORD
+      # 注意：if: 条件不能引用 secrets context，因此在 shell 内判断是否为空。
       - name: Decode release keystore
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "未配置签名 Secret，本次回退 debug 签名。"
+            exit 0
+          fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/release.jks
           cat > android/key.properties <<EOF
           storePassword=$STORE_PASSWORD
