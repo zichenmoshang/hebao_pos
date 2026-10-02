@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../database/app_database.dart' as db;
 import '../database/app_database_provider.dart';
@@ -14,16 +19,33 @@ const _seedProducts = [
   Product(id: 5, name: '五香蛋', priceCents: 150),
 ];
 
+/// 种子商品内置图片（assets/images/products/ 下的文件名），按商品 id 对应
+const _seedImageAssets = <int, String>{
+  1: 'rou_guotie.jpg',
+  2: 'su_guotie.jpg',
+  3: 'doujiang.jpg',
+  4: 'doufunao.jpg',
+  5: 'wuxiangdan.jpg',
+};
+
 class ProductRepository {
   ProductRepository(this._db);
 
   final db.AppDatabase _db;
 
-  /// 首次启动时写入 5 个商品；已有数据则跳过
+  /// 首次启动时写入 5 个商品（含内置图片）；已有数据则跳过
   Future<void> ensureSeeded() async {
     final count = await _db.products.count().getSingle();
     if (count > 0) return;
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    // 内置商品图随 App 打包在 assets，首次播种时复制到应用文档目录，
+    // 使数据库中的 imagePath 与用户拍照所得一致（统一为本地文件路径）
+    final imagePaths = <int, String>{};
+    for (final entry in _seedImageAssets.entries) {
+      imagePaths[entry.key] = await _copyBundledImage(entry.value);
+    }
+
     await _db.batch((batch) {
       batch.insertAll(
         _db.products,
@@ -34,12 +56,30 @@ class ProductRepository {
               name: _seedProducts[i].name,
               priceCents: _seedProducts[i].priceCents,
               unit: Value(_seedProducts[i].unit),
+              imagePath: Value(imagePaths[_seedProducts[i].id]),
               sortIndex: Value(i),
               createdAt: now,
             ),
         ],
       );
     });
+  }
+
+  /// 把内置商品图 asset 复制到应用文档目录 product_images/，返回文件路径
+  Future<String> _copyBundledImage(String fileName) async {
+    final data =
+        await rootBundle.load('assets/images/products/$fileName');
+    final dir = await getApplicationDocumentsDirectory();
+    final imagesDir = Directory(p.join(dir.path, 'product_images'));
+    if (!imagesDir.existsSync()) {
+      imagesDir.createSync(recursive: true);
+    }
+    final file = File(p.join(imagesDir.path, 'seed_$fileName'));
+    await file.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true,
+    );
+    return file.path;
   }
 
   /// 读取在售商品，按排序字段升序（收银网格用）

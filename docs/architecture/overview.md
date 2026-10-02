@@ -53,6 +53,18 @@ lib/
     └── models/               # Product 等
 ```
 
+打包资源（`pubspec.yaml` 已注册商品图目录）：
+
+```text
+assets/
+├── branding/                 # 品牌源图（不入包运行时引用，供图标/启动屏生成）
+│   ├── app_icon.png          # 启动器方形象征图
+│   ├── app_icon_foreground.png # Android 自适应图标前景（留白）
+│   └── splash_logo.png       # 启动屏 logo
+└── images/products/          # 5 个默认商品内置图（随包打入）
+    └── rou_guotie.jpg ...
+```
+
 数据库在首次访问 `appDatabaseProvider`（Riverpod `Provider<AppDatabase>`）时惰性打开，应用生命周期内复用，无需在 `main()` 中显式初始化。
 
 `test/` 目录镜像 `lib/` 结构。
@@ -100,7 +112,8 @@ database (DAO / SQLite)
 - **金额单位**：数据库、模型全部用「分」整数；仅在展示层格式化为 `¥12.5`
 - **时间**：统一存本地时间戳；统计按设备本地日期切分（单店无时区问题）
 - **数据库迁移**：schema 变更必须递增版本并提供 migration，禁止删库重建
-- **商品图片**：完全离线，压缩后存应用文档目录 `product_images/`，数据库仅存文件路径；换图删旧文件，停用保留图片
+- **商品图片**：完全离线，压缩后存应用文档目录 `product_images/`，数据库仅存文件路径；换图删旧文件，停用保留图片。默认 5 个商品的内置图随包打入 assets，`ensureSeeded()` 播种时复制到应用目录，使种子图与用户拍照路径形态一致
+- **品牌资源**：图标源图在 `assets/branding/`，用 `flutter_launcher_icons`（配置 `flutter_launcher_icons.yaml`）生成 mipmap 与自适应图标；启动屏为 `android/app/src/main/res` 下的标准 drawable/styles 资源（含 v31 Android 12 图），不依赖运行时插件
 - **商品网格滚动**：1～2 排时卡片高度精确适配可用空间、不滚动；3 排及以上用固定宽高比并可滚动
 - **屏幕常亮 / 震动**：通过对应插件在收银页生命周期内启用，设置项持久化
 
