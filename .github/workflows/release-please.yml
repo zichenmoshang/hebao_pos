@@ -1,0 +1,41 @@
+name: Release Please
+
+# L3 提交驱动发布：
+#   1. 每次 push 到 main，release-please 根据 Conventional Commits 自动维护
+#      一个 Release PR（自动改 pubspec.yaml 版本、生成 CHANGELOG.md）。
+#   2. 合并该 PR 后，release-please 自动打带 v 前缀的 tag 并创建 GitHub Release。
+#   3. tag（v*）再触发 release.yml 构建并上传签名 APK。
+#
+# 关键：使用 GitHub App 动态换取安装令牌（App ID + 私钥），而不是默认 GITHUB_TOKEN
+# 或会过期的 PAT。App 令牌创建的 tag 能正常触发 release.yml，且私钥永不过期、可随时吊销。
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 用 GitHub App 的 ID 与私钥，动态生成一个短期安装令牌
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Run release-please
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

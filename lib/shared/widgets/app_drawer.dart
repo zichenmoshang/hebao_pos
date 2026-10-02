@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/theme.dart';
 import '../../features/cost/screens/cost_screen.dart';
@@ -21,7 +22,9 @@ class AppDrawer extends StatelessWidget {
           backgroundColor: AppColors.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(
-                top: Radius.zero, bottom: Radius.zero),
+              top: Radius.zero,
+              bottom: Radius.zero,
+            ),
           ),
           child: SafeArea(
             child: Column(
@@ -31,7 +34,9 @@ class AppDrawer extends StatelessWidget {
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     children: [
                       _DrawerItem(
                         icon: Icons.bar_chart_rounded,
@@ -53,11 +58,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 const Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text(
-                    '和宝小吃 · v0.1',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textMuted),
-                  ),
+                  child: _AppVersionLabel(),
                 ),
               ],
             ),
@@ -140,16 +141,14 @@ class _DrawerItemState extends State<_DrawerItem> {
         onTapCancel: () => setState(() => _pressed = false),
         onTap: () {
           Navigator.pop(context);
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => widget.page),
-          );
+          Navigator.of(context)
+              .push(MaterialPageRoute<void>(builder: (_) => widget.page));
         },
         child: AnimatedScale(
           scale: _pressed ? 0.97 : 1,
           duration: const Duration(milliseconds: 90),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.surfaceElevated,
               borderRadius: BorderRadius.circular(UiScale.scale(14)),
@@ -177,6 +176,35 @@ class _DrawerItemState extends State<_DrawerItem> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 侧边栏底部版本号：运行时从 PackageInfo 读取（源头为 pubspec.yaml 的 version），
+/// 展示为「和宝小吃 · vX.Y.Z」，避免硬编码与实际版本不一致。
+class _AppVersionLabel extends StatefulWidget {
+  const _AppVersionLabel();
+
+  @override
+  State<_AppVersionLabel> createState() => _AppVersionLabelState();
+}
+
+class _AppVersionLabelState extends State<_AppVersionLabel> {
+  String? _version;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '和宝小吃 · v${_version ?? ''}',
+      style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
     );
   }
 }

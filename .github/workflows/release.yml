@@ -43,8 +43,10 @@ jobs:
           storeFile=../release.jks
           EOF
 
+      # --build-number 用 CI 自增运行号覆盖 pubspec 的 +N，保证 Android versionCode
+      # 每次发布都严格递增（覆盖安装的硬性要求），不依赖 release-please 维护 build 号。
       - name: Build split APKs
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --build-number ${{ github.run_number }}
 
       - name: Rename APKs and generate checksums
         run: |
@@ -59,10 +61,11 @@ jobs:
           sha256sum *.apk > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      # Release 已由 release-please 创建（正文为 CHANGELOG 内容），这里只上传 APK，
+      # 不传 body / generate_release_notes，避免覆盖 release-please 写好的更新说明。
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
           files: |
             release-artifacts/*.apk
             release-artifacts/SHA256SUMS.txt
