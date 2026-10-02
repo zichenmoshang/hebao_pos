@@ -1,0 +1,53 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.ipynb_checkpoints
+.swo/
+*~
+/.idea/
+/.trae/
+/.vscode/
+/flutter_*.png
+Generated.xcconfig
+
+# Flutter / Dart / Pub
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+.fvm/
+
+# Symbolication / Obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android
+**/android/build/
+**/android/.gradle/
+**/android/.kotlin/
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/.cxx/
+*.jks
+*.keystore
+
+# IntelliJ / Android Studio（.iml 模块文件，.idea 已在上方忽略）
+*.iml
+
+# Web
+/lib/generated_plugin_registrant.dart
+
+# Environment
+.env
+.env.*
