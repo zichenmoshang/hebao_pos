@@ -2,6 +2,14 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.1.1](https://github.com/zichenmoshang/hebao_pos/compare/v1.1.0...v1.1.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* harden cashier checkout and paginate range lists ([61112fc](https://github.com/zichenmoshang/hebao_pos/commit/61112fc65f4425d32500754a0113800a0a751771))
+* harden cashier checkout and paginate range lists ([dc9eddd](https://github.com/zichenmoshang/hebao_pos/commit/dc9eddd7f1730d74c05b5591103cc2a4ee5a4396))
+
 ## [1.1.0](https://github.com/zichenmoshang/hebao_pos/compare/v1.0.0...v1.1.0) (2026-10-02)
 
 
