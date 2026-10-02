@@ -8,9 +8,37 @@ import '../../../core/utils/haptics.dart';
 import '../../../core/utils/money.dart';
 import '../providers/stats_providers.dart';
 
-/// 区间订单明细：列出当前筛选区间内的订单，可滑动删除错单
-class OrdersScreen extends ConsumerWidget {
+/// 区间订单明细：游标分页加载，可滑动删除错单
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
+
+  @override
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends ConsumerState<OrdersScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(pagedStatsOrdersProvider.notifier).loadMore();
+    }
+  }
 
   Future<void> _confirmDelete(
       BuildContext context, WidgetRef ref, OrderRecord order) async {
@@ -40,7 +68,7 @@ class OrdersScreen extends ConsumerWidget {
 
     await ref.read(orderRepositoryProvider).deleteOrder(order.id);
     AppHaptics.medium(ref);
-    ref.invalidate(statsOrdersProvider);
+    ref.read(pagedStatsOrdersProvider.notifier).removeById(order.id);
     ref.invalidate(statsSummaryProvider);
     ref.invalidate(statsDailyRevenueProvider);
     ref.invalidate(statsProductSalesProvider);
@@ -48,9 +76,9 @@ class OrdersScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     UiScale.init(context);
-    final orders = ref.watch(statsOrdersProvider);
+    final orders = ref.watch(pagedStatsOrdersProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('区间订单明细')),
@@ -58,8 +86,8 @@ class OrdersScreen extends ConsumerWidget {
         child: orders.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('读取失败：$e')),
-          data: (list) {
-            if (list.isEmpty) {
+          data: (state) {
+            if (state.items.isEmpty) {
               return Center(
                 child: Text(
                   '该区间暂无订单',
@@ -71,12 +99,26 @@ class OrdersScreen extends ConsumerWidget {
               );
             }
             return ListView.separated(
+              controller: _scrollController,
               padding: EdgeInsets.all(UiScale.scale(12)),
-              itemCount: list.length,
+              itemCount:
+                  state.items.length + (state.hasMore ? 1 : 0),
               separatorBuilder: (_, _) =>
                   SizedBox(height: UiScale.scale(8)),
               itemBuilder: (context, i) {
-                final order = list[i];
+                if (i >= state.items.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                }
+                final order = state.items[i];
                 return Dismissible(
                   key: ValueKey(order.id),
                   direction: DismissDirection.endToStart,

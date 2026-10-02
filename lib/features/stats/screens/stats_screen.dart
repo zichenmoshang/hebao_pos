@@ -45,12 +45,16 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(statsSummaryProvider);
-            ref.invalidate(statsDailyRevenueProvider);
-            ref.invalidate(statsProductSalesProvider);
-            ref.invalidate(statsOrdersProvider);
-            ref.invalidate(statsCostTotalProvider);
-            ref.invalidate(statsCategoryBreakdownProvider);
+            // await 各 provider 的新 Future，刷新动画持续到数据真正加载完成。
+            // 分页订单是 family(range) provider，用 invalidate 让订单页重建首页
+            ref.invalidate(pagedStatsOrdersProvider);
+            await Future.wait([
+              ref.refresh(statsSummaryProvider.future),
+              ref.refresh(statsDailyRevenueProvider.future),
+              ref.refresh(statsProductSalesProvider.future),
+              ref.refresh(statsCostTotalProvider.future),
+              ref.refresh(statsCategoryBreakdownProvider.future),
+            ]);
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),

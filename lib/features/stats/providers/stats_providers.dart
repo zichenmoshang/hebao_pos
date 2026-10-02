@@ -33,12 +33,89 @@ final statsDailyProductQuantityProvider =
       .dailyProductQuantity(productId, range);
 });
 
-/// 区间订单列表（按时间倒序）
-final statsOrdersProvider =
-    FutureProvider<List<OrderRecord>>((ref) async {
-  final range = ref.watch(statsFilterProvider).range;
-  return ref.watch(orderRepositoryProvider).ordersInRange(range);
-});
+/// 分页列表通用状态：已累加的记录 + 是否还有下一页 + 是否正在加载
+class PagedState<T> {
+  const PagedState({
+    this.items = const [],
+    this.hasMore = true,
+    this.loadingMore = false,
+  });
+
+  final List<T> items;
+  final bool hasMore;
+  final bool loadingMore;
+
+  PagedState<T> copyWith({
+    List<T>? items,
+    bool? hasMore,
+    bool? loadingMore,
+  }) {
+    return PagedState<T>(
+      items: items ?? this.items,
+      hasMore: hasMore ?? this.hasMore,
+      loadingMore: loadingMore ?? this.loadingMore,
+    );
+  }
+}
+
+const statsPageSize = 20;
+
+/// 区间订单分页列表（游标 keyset，倒序）。
+/// 直接 watch 筛选 provider：区间变化时自动重建首页，无需 family
+class StatsOrdersNotifier
+    extends AsyncNotifier<PagedState<OrderRecord>> {
+  @override
+  Future<PagedState<OrderRecord>> build() async {
+    final range = ref.watch(statsFilterProvider).range;
+    final page = await ref
+        .watch(orderRepositoryProvider)
+        .pagedOrdersInRange(range, limit: statsPageSize);
+    return PagedState(
+      items: page,
+      hasMore: page.length == statsPageSize,
+    );
+  }
+
+  /// 滚动到底加载下一页
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null ||
+        !current.hasMore ||
+        current.loadingMore ||
+        current.items.isEmpty) {
+      return;
+    }
+
+    final range = ref.read(statsFilterProvider).range;
+    final cursor = current.items.last;
+    // 先置 loadingMore，列表尾部展示加载指示
+    state = AsyncData(current.copyWith(loadingMore: true));
+
+    final page = await ref.read(orderRepositoryProvider).pagedOrdersInRange(
+          range,
+          limit: statsPageSize,
+          cursorCreatedAt: cursor.createdAtMs,
+          cursorId: cursor.id,
+        );
+    state = AsyncData(PagedState(
+      items: [...current.items, ...page],
+      hasMore: page.length == statsPageSize,
+      loadingMore: false,
+    ));
+  }
+
+  /// 删除订单后从已加载列表移除（后续页由滚动继续拉取）
+  void removeById(int id) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(
+      items: current.items.where((e) => e.id != id).toList(),
+    ));
+  }
+}
+
+final pagedStatsOrdersProvider = AsyncNotifierProvider<StatsOrdersNotifier,
+    PagedState<OrderRecord>>(StatsOrdersNotifier.new);
 
 /// 某订单的明细行
 final orderItemsProvider =

@@ -1,4 +1,4 @@
-﻿import 'package:drift/drift.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart' as db;
@@ -33,6 +33,23 @@ class ProductSales {
   final String name;
   final int quantity;
   final int amountCents;
+}
+
+/// 一笔订单明细的导出行（含成交单价快照）
+class OrderItemDetail {
+  const OrderItemDetail({
+    required this.orderId,
+    required this.productName,
+    required this.unitPriceCents,
+    required this.quantity,
+    required this.lineTotalCents,
+  });
+
+  final int orderId;
+  final String productName;
+  final int unitPriceCents;
+  final int quantity;
+  final int lineTotalCents;
 }
 
 /// 一笔历史订单（列表展示用）
@@ -223,9 +240,61 @@ class OrderRepository {
     ];
   }
 
+  /// 一次性取多笔订单的全部明细（消除导出时逐订单查询的 N+1），
+  /// 直接带出成交单价快照，无需用行小计反推
+  Future<List<OrderItemDetail>> itemsOfOrders(List<int> orderIds) async {
+    if (orderIds.isEmpty) return const [];
+    final rows = await (_db.select(_db.orderItems)
+          ..where((t) => t.orderId.isIn(orderIds)))
+        .get();
+    return [
+      for (final r in rows)
+        OrderItemDetail(
+          orderId: r.orderId,
+          productName: r.productName,
+          unitPriceCents: r.unitPriceCents,
+          quantity: r.quantity,
+          lineTotalCents: r.lineTotalCents,
+        ),
+    ];
+  }
+
   /// 删除订单（级联删除明细）
   Future<void> deleteOrder(int orderId) async {
     await (_db.delete(_db.orders)..where((t) => t.id.equals(orderId))).go();
+  }
+
+  /// 游标分页取区间订单（倒序）。
+  /// [cursorCreatedAt]/[cursorId] 为上一页最后一条，null 取首页；
+  /// 用 (createdAt, id) 复合游标处理同一毫秒多条，每页 [limit] 条。
+  Future<List<OrderRecord>> pagedOrdersInRange(
+    DateRange range, {
+    required int limit,
+    int? cursorCreatedAt,
+    int? cursorId,
+  }) async {
+    final q = _db.select(_db.orders)
+      ..where((t) =>
+          t.createdAt.isBetweenValues(range.start, range.end - 1))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+        (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+      ])
+      ..limit(limit);
+
+    final cc = cursorCreatedAt;
+    final ci = cursorId;
+    if (cc != null && ci != null) {
+      // 倒序下一页：createdAt 更小，或同毫秒 id 更小
+      q.where((t) =>
+          t.createdAt.isSmallerThanValue(cc) |
+          (t.createdAt.equals(cc) & t.id.isSmallerThanValue(ci)));
+    }
+    final rows = await q.get();
+    return [
+      for (final r in rows)
+        OrderRecord(id: r.id, totalCents: r.totalCents, createdAtMs: r.createdAt),
+    ];
   }
 }
 

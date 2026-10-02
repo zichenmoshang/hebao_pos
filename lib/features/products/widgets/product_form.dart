@@ -382,6 +382,13 @@ class _ImagePicker extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: size,
+                height: size,
+                color: AppColors.background,
+                child: const Icon(Icons.broken_image_outlined,
+                    color: AppColors.textMuted),
+              ),
             ),
           ),
           Positioned(

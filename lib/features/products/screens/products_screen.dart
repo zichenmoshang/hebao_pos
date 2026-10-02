@@ -209,9 +209,14 @@ class _Thumbnail extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _namePlaceholder(size, product),
         ),
       );
     }
+    return _namePlaceholder(size, product);
+  }
+
+  Widget _namePlaceholder(double size, Product product) {
     return Container(
       width: size,
       height: size,

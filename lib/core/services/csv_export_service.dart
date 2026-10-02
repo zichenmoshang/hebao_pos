@@ -54,6 +54,15 @@ class CsvExportService {
       for (final h in ['日期', '类目', '金额(元)', '备注']) TextCellValue(h),
     ]);
 
+    // 一次批量取全部订单明细，再按 orderId 分组（消除 N+1）
+    final allItems = await _ref
+        .read(orderRepositoryProvider)
+        .itemsOfOrders([for (final o in orderedOrders) o.id]);
+    final itemsByOrder = <int, List<OrderItemDetail>>{};
+    for (final item in allItems) {
+      (itemsByOrder[item.orderId] ??= []).add(item);
+    }
+
     for (final order in orderedOrders) {
       summarySheet.appendRow([
         IntCellValue(order.id),
@@ -62,15 +71,13 @@ class CsvExportService {
         DoubleCellValue(_yuan(order.totalCents)),
       ]);
 
-      final items =
-          await _ref.read(orderRepositoryProvider).itemsOfOrder(order.id);
-      for (final it in items) {
+      for (final it in itemsByOrder[order.id] ?? const <OrderItemDetail>[]) {
         detailSheet.appendRow([
           IntCellValue(order.id),
-          TextCellValue(it.name),
-          DoubleCellValue(_yuan(it.amountCents ~/ it.quantity)),
+          TextCellValue(it.productName),
+          DoubleCellValue(_yuan(it.unitPriceCents)),
           IntCellValue(it.quantity),
-          DoubleCellValue(_yuan(it.amountCents)),
+          DoubleCellValue(_yuan(it.lineTotalCents)),
         ]);
       }
     }
