@@ -1,0 +1,38 @@
+name: PR Title Lint
+
+# 校验 PR 标题是否符合 Conventional Commits（feat: / fix: / ci: ...），
+# 不符合则检查失败、阻止合并，避免不规范提交让 release-please 静默忽略。
+# squash merge 时 PR 标题即最终 commit，因此校验标题即可。
+#
+# release-please 自动开的 Release PR 标题形如「chore(main): release 1.1.0」，
+# 同样符合规范，可正常通过。
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+    branches:
+      - main
+
+jobs:
+  semantic-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # 允许的提交类型（默认基础上补充常用项）
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
