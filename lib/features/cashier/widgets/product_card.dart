@@ -30,6 +30,7 @@ class ProductCard extends StatelessWidget {
     3: Icons.coffee,
     4: Icons.soup_kitchen,
     5: Icons.egg,
+    6: Icons.rice_bowl,
   };
 
   @override

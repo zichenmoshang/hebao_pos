@@ -166,15 +166,15 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
 
                       double aspectRatio;
                       bool scrollable;
-                      if (rows <= 2) {
-                        // 一 / 两排：卡片高度精确适配可用空间，完整显示、不滚动
+                      if (rows <= 3) {
+                        // 三排及以内：卡片高度精确适配可用空间，完整显示、不滚动
                         final cellH =
                             (constraints.maxHeight - (rows - 1) * spacing) /
                                 rows;
                         aspectRatio = cellW / cellH;
                         scrollable = false;
                       } else {
-                        // 三排及以上：固定宽高比，超出部分滚动
+                        // 四排及以上：固定宽高比，超出部分滚动
                         aspectRatio = 0.72;
                         scrollable = true;
                       }

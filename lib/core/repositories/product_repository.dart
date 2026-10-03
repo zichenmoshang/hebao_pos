@@ -10,13 +10,14 @@ import '../database/app_database.dart' as db;
 import '../database/app_database_provider.dart';
 import '../../shared/models/product.dart';
 
-/// 固定 5 个品类的种子数据（id 与原硬编码保持一致）
+/// 固定 6 个品类的种子数据（id 与原硬编码保持一致）
 const _seedProducts = [
-  Product(id: 1, name: '肉锅贴', priceCents: 80),
-  Product(id: 2, name: '素锅贴', priceCents: 70),
+  Product(id: 1, name: '肉锅贴', priceCents: 150),
+  Product(id: 2, name: '素锅贴', priceCents: 100),
   Product(id: 3, name: '豆浆', priceCents: 200, unit: '杯'),
   Product(id: 4, name: '豆腐脑', priceCents: 300, unit: '碗'),
   Product(id: 5, name: '五香蛋', priceCents: 150),
+  Product(id: 6, name: '白粥', priceCents: 200, unit: '碗'),
 ];
 
 /// 种子商品内置图片（assets/images/products/ 下的文件名），按商品 id 对应
@@ -26,6 +27,7 @@ const _seedImageAssets = <int, String>{
   3: 'doujiang.jpg',
   4: 'doufunao.jpg',
   5: 'wuxiangdan.jpg',
+  6: 'baizhou.jpg',
 };
 
 class ProductRepository {
