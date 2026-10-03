@@ -2,6 +2,14 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.2.0](https://github.com/zichenmoshang/hebao_pos/compare/v1.1.1...v1.2.0) (2026-10-03)
+
+
+### Features
+
+* 透明启动图、调整默认商品并优化收银网格 ([1ddc34b](https://github.com/zichenmoshang/hebao_pos/commit/1ddc34b639f19ceb1de53f8eee21388d13b7118e))
+* 透明启动图、调整默认商品并优化收银网格 ([16afbf4](https://github.com/zichenmoshang/hebao_pos/commit/16afbf4e457dfc5107909cce942babf4c293d81d))
+
 ## [1.1.1](https://github.com/zichenmoshang/hebao_pos/compare/v1.1.0...v1.1.1) (2026-10-02)
 
 
