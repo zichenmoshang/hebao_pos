@@ -22,6 +22,13 @@ void main() {
       expect(formatCents(205), '¥2.05');
       expect(formatCents(1234), '¥12.34');
     });
+
+    test('负金额按绝对值格式化后补负号（毛利为负场景）', () {
+      expect(formatCents(-500), '¥-5');
+      expect(formatCents(-530), '¥-5.3');
+      expect(formatCents(-1050), '¥-10.5');
+      expect(formatCents(-1234), '¥-12.34');
+    });
   });
 
   group('formatPriceCents', () {

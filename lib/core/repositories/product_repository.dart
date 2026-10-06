@@ -35,7 +35,7 @@ class ProductRepository {
 
   final db.AppDatabase _db;
 
-  /// 首次启动时写入 5 个商品（含内置图片）；已有数据则跳过
+  /// 首次启动时写入 6 个内置商品（含内置图片）；已有数据则跳过
   Future<void> ensureSeeded() async {
     final count = await _db.products.count().getSingle();
     if (count > 0) return;

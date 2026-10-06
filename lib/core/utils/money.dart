@@ -1,5 +1,8 @@
 /// 金额一律以整数「分」存储，仅展示层格式化
 String formatCents(int cents) {
+  // 负数（如成本超过营业额的毛利）：~/ 向下取整会导致绝对值被放大，
+  // 统一按绝对值格式化后补负号，保证 ¥-5.3 而非 ¥-6.7
+  if (cents < 0) return '¥-${formatCents(-cents).substring(1)}';
   final whole = cents ~/ 100;
   final remainder = cents % 100;
   if (remainder == 0) {

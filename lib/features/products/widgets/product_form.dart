@@ -199,10 +199,12 @@ class _ProductFormState extends ConsumerState<ProductForm> {
         top: pad,
         bottom: MediaQuery.of(context).viewInsets.bottom + pad,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      // 键盘弹起时可用高度被压缩，内容可滚动避免底部溢出
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Text(
             _isEdit ? '编辑商品' : '新增商品',
             style: TextStyle(
@@ -307,7 +309,8 @@ class _ProductFormState extends ConsumerState<ProductForm> {
                   : const Text('保存'),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

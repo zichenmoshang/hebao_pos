@@ -73,13 +73,6 @@ class CurrentOrderNotifier extends Notifier<CurrentOrderState> {
     state = const CurrentOrderState();
   }
 
-  /// 卡片底部「清除」：直接移除该商品（选中态保留，便于继续操作）
-  void removeProduct(int productId) {
-    final lines =
-        state.lines.where((l) => l.product.id != productId).toList();
-    state = state.copyWith(lines: lines);
-  }
-
   Product? _findProduct(int id) {
     for (final line in state.lines) {
       if (line.product.id == id) return line.product;

@@ -11,7 +11,29 @@ permissions:
   contents: write
 
 jobs:
+  # 发版拦截：先在模拟器上跑全部集成测试，失败则不构建 APK、发布中止。
+  # 日常 PR 不跑（见 ci.yml），只在真实发版时启用。
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run integration tests on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: flutter test integration_test
+
   build-and-release:
+    needs: integration-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

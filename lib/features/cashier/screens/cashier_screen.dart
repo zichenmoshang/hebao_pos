@@ -10,6 +10,7 @@ import '../../../core/settings/keep_awake_controller.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/utils/money.dart';
 import '../../../shared/widgets/app_drawer.dart';
+import '../../stats/providers/stats_providers.dart';
 import '../providers/current_order_provider.dart';
 import '../providers/today_summary_provider.dart';
 import '../widgets/product_card.dart';
@@ -97,7 +98,13 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
 
       AppHaptics.medium(ref);
       notifier.clear();
-      if (mounted) ref.invalidate(todaySummaryProvider);
+      if (mounted) {
+        ref.invalidate(todaySummaryProvider);
+        // 统计页 provider 无监听时仍缓存，结账后重进统计页应看到新数据
+        ref.invalidate(statsSummaryProvider);
+        ref.invalidate(statsDailyRevenueProvider);
+        ref.invalidate(statsProductSalesProvider);
+      }
     } catch (_) {
       // 失败不弹提示：静默清掉这一单，保证快速计价流程不被阻塞
       _checkoutTimeoutTimer?.cancel();

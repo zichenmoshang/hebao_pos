@@ -33,6 +33,38 @@ void main() {
         );
   }
 
+  /// 以指定时间直接插入订单（checkout 的时间固定为 now，历史数据用此构造）
+  Future<int> insertOrder({
+    required int totalCents,
+    required DateTime createdAt,
+  }) {
+    return db.into(db.orders).insert(
+          OrdersCompanion.insert(
+            totalCents: totalCents,
+            createdAt: createdAt.millisecondsSinceEpoch,
+          ),
+        );
+  }
+
+  Future<void> insertItem({
+    required int orderId,
+    required int productId,
+    required String name,
+    required int unitPriceCents,
+    required int quantity,
+  }) {
+    return db.into(db.orderItems).insert(
+          OrderItemsCompanion.insert(
+            orderId: orderId,
+            productId: productId,
+            productName: name,
+            unitPriceCents: unitPriceCents,
+            quantity: quantity,
+            lineTotalCents: unitPriceCents * quantity,
+          ),
+        );
+  }
+
   group('checkout', () {
     test('写入订单与明细并返回订单 id，总额为各行小计之和', () async {
       await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
@@ -157,6 +189,210 @@ void main() {
       expect(summary.orderCount, 2);
       expect(summary.totalCents, 280);
       expect(summary.avgCents, 140);
+    });
+
+    test('空区间 summary 全为 0，avgCents 不抛除零', () async {
+      final day = DateTime.now();
+      final summary = await repo.summary(dayRange(day));
+      expect(summary.orderCount, 0);
+      expect(summary.totalCents, 0);
+      expect(summary.avgCents, 0);
+    });
+
+    test('summary 不计入区间外订单', () async {
+      final day = DateTime.now();
+      await insertOrder(totalCents: 100, createdAt: day);
+      await insertOrder(
+        totalCents: 900,
+        createdAt: day.subtract(const Duration(days: 1)),
+      );
+
+      final summary = await repo.summary(dayRange(day));
+      expect(summary.orderCount, 1);
+      expect(summary.totalCents, 100);
+    });
+  });
+
+  group('ordersInRange', () {
+    test('按时间倒序返回区间内订单', () async {
+      final base = DateTime(2026, 10, 2, 8);
+      final id1 = await insertOrder(totalCents: 100, createdAt: base);
+      final id2 = await insertOrder(
+        totalCents: 200,
+        createdAt: base.add(const Duration(hours: 1)),
+      );
+      final id3 = await insertOrder(
+        totalCents: 300,
+        createdAt: base.add(const Duration(hours: 2)),
+      );
+      // 区间外
+      await insertOrder(
+        totalCents: 900,
+        createdAt: base.subtract(const Duration(days: 2)),
+      );
+
+      final orders = await repo.ordersInRange(dayRange(base));
+      expect(orders.map((e) => e.id), [id3, id2, id1]);
+      expect(orders.map((e) => e.totalCents), [300, 200, 100]);
+      expect(orders.first.createdAt, base.add(const Duration(hours: 2)));
+    });
+  });
+
+  group('dailyRevenue', () {
+    test('跨天订单按「距起点第 n 天」归并', () async {
+      final start = DateTime(2026, 10, 1);
+      await insertOrder(
+        totalCents: 100,
+        createdAt: start.add(const Duration(hours: 8)),
+      );
+      await insertOrder(
+        totalCents: 200,
+        createdAt: start.add(const Duration(hours: 20)),
+      );
+      await insertOrder(
+        totalCents: 300,
+        createdAt: start.add(const Duration(days: 2, hours: 9)),
+      );
+
+      final revenue = await repo.dailyRevenue(
+        customRange(start, start.add(const Duration(days: 2))),
+      );
+      expect(revenue, {0: 300, 2: 300});
+    });
+  });
+
+  group('productSales', () {
+    test('跨订单聚合销量并按销售额降序', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      await seedProduct(id: 3, name: '豆浆', priceCents: 200);
+
+      final order1 = await insertOrder(
+        totalCents: 360,
+        createdAt: DateTime(2026, 10, 2, 8),
+      );
+      await insertItem(
+        orderId: order1,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 2,
+      );
+      await insertItem(
+        orderId: order1,
+        productId: 3,
+        name: '豆浆',
+        unitPriceCents: 200,
+        quantity: 1,
+      );
+      final order2 = await insertOrder(
+        totalCents: 80,
+        createdAt: DateTime(2026, 10, 2, 9),
+      );
+      await insertItem(
+        orderId: order2,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 1,
+      );
+
+      final sales = await repo.productSales(dayRange(DateTime(2026, 10, 2)));
+      expect(sales.map((e) => e.productId), [1, 3]);
+      expect(sales.map((e) => e.quantity), [3, 1]);
+      expect(sales.map((e) => e.amountCents), [240, 200]);
+    });
+  });
+
+  group('dailyProductQuantity', () {
+    test('只统计指定商品并按日归并', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      await seedProduct(id: 3, name: '豆浆', priceCents: 200);
+      final start = DateTime(2026, 10, 1);
+
+      final order1 = await insertOrder(
+        totalCents: 360,
+        createdAt: start.add(const Duration(hours: 8)),
+      );
+      await insertItem(
+        orderId: order1,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 2,
+      );
+      await insertItem(
+        orderId: order1,
+        productId: 3,
+        name: '豆浆',
+        unitPriceCents: 200,
+        quantity: 1,
+      );
+      final order2 = await insertOrder(
+        totalCents: 240,
+        createdAt: start.add(const Duration(days: 2, hours: 9)),
+      );
+      await insertItem(
+        orderId: order2,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 3,
+      );
+
+      final quantities = await repo.dailyProductQuantity(
+        1,
+        customRange(start, start.add(const Duration(days: 2))),
+      );
+      expect(quantities, {0: 2, 2: 3});
+    });
+  });
+
+  group('itemsOfOrder', () {
+    test('返回单笔订单的明细行', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      await seedProduct(id: 3, name: '豆浆', priceCents: 200);
+
+      final orderId = await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 2,
+        ),
+        const OrderLine(
+          product: Product(id: 3, name: '豆浆', priceCents: 200),
+          quantity: 1,
+        ),
+      ]);
+
+      final items = await repo.itemsOfOrder(orderId);
+      expect(items, hasLength(2));
+      expect(items.map((e) => e.name), ['肉锅贴', '豆浆']);
+      expect(items.map((e) => e.quantity), [2, 1]);
+      expect(items.map((e) => e.amountCents), [160, 200]);
+    });
+  });
+
+  group('deleteOrder', () {
+    test('删除订单并级联删除明细，不影响其他订单', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      final id1 = await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 1,
+        ),
+      ]);
+      final id2 = await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 2,
+        ),
+      ]);
+
+      await repo.deleteOrder(id1);
+
+      final orders = await db.select(db.orders).get();
+      expect(orders.single.id, id2);
+      final items = await db.select(db.orderItems).get();
+      expect(items.single.orderId, id2);
     });
   });
 }

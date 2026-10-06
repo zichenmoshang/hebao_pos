@@ -55,7 +55,9 @@ class ProductsScreen extends ConsumerWidget {
                 pad,
                 pad,
                 pad,
-                UiScale.scale(80),
+                // FAB 高 56 + 下边距 16 不随 UiScale 缩放，小屏下
+                // 缩放过的 padding 可能小于 FAB 区域导致末行按钮被遮挡
+                88,
               ),
               itemCount: products.length,
               buildDefaultDragHandles: false,
@@ -99,6 +101,8 @@ class _ProductTile extends StatelessWidget {
     final saved = await ProductForm.show(context, product: product);
     if (saved == true) {
       ref.invalidate(allProductsProvider);
+      // 收银网格常驻监听，改价/改名后需同步刷新
+      ref.invalidate(activeProductsProvider);
     }
   }
 
@@ -128,6 +132,8 @@ class _ProductTile extends StatelessWidget {
     }
     await ref.read(productRepositoryProvider).setActive(product.id, activating);
     ref.invalidate(allProductsProvider);
+    // 收银网格常驻监听，停用/启用后需同步刷新
+    ref.invalidate(activeProductsProvider);
   }
 
   @override

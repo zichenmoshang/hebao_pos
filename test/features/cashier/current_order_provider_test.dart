@@ -43,22 +43,58 @@ void main() {
     expect(container.read(currentOrderProvider).lines, isEmpty);
   });
 
-  test('removeProduct 移除指定行并保留选中态', () {
-    final notifier = container.read(currentOrderProvider.notifier);
-    notifier.addOne(p1);
-    notifier.addOne(p3);
-
-    notifier.removeProduct(1);
-
-    final state = container.read(currentOrderProvider);
-    expect(state.lines.single.product.id, 3);
-    expect(state.selectedProductId, 3);
-  });
-
   test('clear 重置全部', () {
     final notifier = container.read(currentOrderProvider.notifier);
     notifier.addOne(p1);
     notifier.clear();
     expect(container.read(currentOrderProvider).lines, isEmpty);
+  });
+
+  test('addOne 不同商品各占一行，选中态跟随最新点按', () {
+    final notifier = container.read(currentOrderProvider.notifier);
+
+    notifier.addOne(p1);
+    notifier.addOne(p3);
+
+    final state = container.read(currentOrderProvider);
+    expect(state.lines, hasLength(2));
+    expect(state.lines.map((e) => e.product.id), [1, 3]);
+    expect(state.selectedProductId, 3);
+    expect(state.totalCents, 280);
+  });
+
+  test('totalCents 跨多行累计，isEmpty 反映是否为空单', () {
+    final notifier = container.read(currentOrderProvider.notifier);
+    expect(container.read(currentOrderProvider).isEmpty, isTrue);
+    expect(container.read(currentOrderProvider).totalCents, 0);
+
+    notifier.addOne(p1);
+    notifier.addOne(p1);
+    notifier.addOne(p3);
+
+    final state = container.read(currentOrderProvider);
+    expect(state.isEmpty, isFalse);
+    expect(state.totalCents, 360);
+  });
+
+  test('selectedQuantity 返回对应商品数量，未点商品为 0', () {
+    final notifier = container.read(currentOrderProvider.notifier);
+    notifier.addOne(p1);
+    notifier.addOne(p1);
+
+    final state = container.read(currentOrderProvider);
+    expect(state.selectedQuantity(1), 2);
+    expect(state.selectedQuantity(3), 0);
+  });
+
+  test('setSelectedQuantity 负数与 0 一样移除并取消选中', () {
+    final notifier = container.read(currentOrderProvider.notifier);
+    notifier.addOne(p1);
+
+    notifier.setSelectedQuantity(-3);
+
+    final state = container.read(currentOrderProvider);
+    expect(state.lines, isEmpty);
+    expect(state.selectedProductId, isNull);
   });
 }

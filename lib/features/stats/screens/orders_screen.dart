@@ -6,6 +6,7 @@ import '../../../app/theme.dart';
 import '../../../core/repositories/order_repository.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/utils/money.dart';
+import '../../cashier/providers/today_summary_provider.dart';
 import '../providers/stats_providers.dart';
 
 /// 区间订单明细：游标分页加载，可滑动删除错单
@@ -73,6 +74,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     ref.invalidate(statsDailyRevenueProvider);
     ref.invalidate(statsProductSalesProvider);
     ref.invalidate(statsDailyProductQuantityProvider);
+    // 收银页「今日流水」常驻监听，删单后必须显式刷新，否则显示旧值
+    ref.invalidate(todaySummaryProvider);
   }
 
   @override
@@ -161,10 +164,14 @@ class _OrderCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(UiScale.scale(14)),
         border: Border.all(color: AppColors.border),
       ),
-      child: Theme(
-        data: Theme.of(context)
-            .copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+      // ExpansionTile 内部是 ListTile，需要最近的 Material 祖先，
+      // 否则隔着 DecoratedBox 会触发框架断言（debug 下直接报错）
+      child: Material(
+        color: Colors.transparent,
+        child: Theme(
+          data: Theme.of(context)
+              .copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
           tilePadding: EdgeInsets.symmetric(
             horizontal: UiScale.scale(14),
           ),
@@ -233,6 +240,7 @@ class _OrderCard extends ConsumerWidget {
                   ),
                 ),
           ],
+          ),
         ),
       ),
     );
