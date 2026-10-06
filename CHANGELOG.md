@@ -2,6 +2,13 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.2.2](https://github.com/zichenmoshang/hebao_pos/compare/v1.2.1...v1.2.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* 结账落库超时后不清零的问题修复与发版门禁提速 ([#11](https://github.com/zichenmoshang/hebao_pos/issues/11)) ([ee80f5a](https://github.com/zichenmoshang/hebao_pos/commit/ee80f5aae87eb153217cac8a182bc8b1b1d2d1b4))
+
 ## [1.2.1](https://github.com/zichenmoshang/hebao_pos/compare/v1.2.0...v1.2.1) (2026-10-06)
 
 
