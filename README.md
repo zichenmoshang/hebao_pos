@@ -11,14 +11,9 @@
 
 ## 界面预览
 
-> 📸 截图位：计划放置收银首页、经营统计、成本记录三张模拟器实拍图（无水印）。
-> 图片放入 `docs/images/` 后取消下方注释即可。
-
-<!--
 ![收银首页](docs/images/cashier.png)
 ![经营统计](docs/images/stats.png)
 ![成本记录](docs/images/cost.png)
--->
 
 ## 特性
 
