@@ -92,3 +92,17 @@ Future<void> revealListEnd(WidgetTester tester, Finder listFinder) async {
   await tester.drag(listFinder, const Offset(0, -160));
   await tester.pumpAndSettle();
 }
+
+/// 轮询等待目标出现：用于「慢设备上异步操作完成后才出现」的临时提示
+/// （如 snackbar 仅展示 4 秒，pumpAndSettle 走完它早已消失）
+Future<void> pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int maxTries = 20,
+}) async {
+  for (var i = 0; i < maxTries; i++) {
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  expect(finder, findsOneWidget);
+}
