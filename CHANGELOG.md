@@ -2,6 +2,13 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.2.1](https://github.com/zichenmoshang/hebao_pos/compare/v1.2.0...v1.2.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* 修复负金额格式化、多页数据刷新、表单溢出等 8 处问题（代码已随 [#8](https://github.com/zichenmoshang/hebao_pos/issues/8) 合入，本提交用于触发 patch 发版） ([#9](https://github.com/zichenmoshang/hebao_pos/issues/9)) ([c0c4d1f](https://github.com/zichenmoshang/hebao_pos/commit/c0c4d1f007ce76c96ecd676ebaa0ecda354f7811))
+
 ## [1.2.0](https://github.com/zichenmoshang/hebao_pos/compare/v1.1.1...v1.2.0) (2026-10-03)
 
 
