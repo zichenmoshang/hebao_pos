@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
@@ -21,5 +25,47 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-      - name: Test
-        run: flutter test
+      - name: Test with coverage
+        run: flutter test --coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+
+      - name: Collect PR coverage
+        shell: bash
+        run: |
+          rate=$(awk -F: '/^LH:/{lh+=$2} /^LF:/{lf+=$2} END{if(lf>0) printf "%.2f",100*lh/lf; else printf "100.00"}' coverage/lcov.info)
+          echo "pr_rate=$rate" >> "$GITHUB_ENV"
+          echo "- PR 覆盖率: **${rate}%**" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage gate vs base branch
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          git worktree add /tmp/base "origin/${{ github.base_ref }}"
+          (
+            cd /tmp/base
+            flutter pub get
+            flutter test --coverage
+          )
+          base_rate=$(awk -F: '/^LH:/{lh+=$2} /^LF:/{lf+=$2} END{if(lf>0) printf "%.2f",100*lh/lf; else printf "100.00"}' /tmp/base/coverage/lcov.info)
+          echo "base_rate=$base_rate" >> "$GITHUB_ENV"
+          echo "- 基线覆盖率（${{ github.base_ref }}）: **${base_rate}%**" >> "$GITHUB_STEP_SUMMARY"
+          pass=$(awk -v a="$pr_rate" -v b="$base_rate" 'BEGIN{print (a+0 >= b+0) ? 1 : 0}')
+          if [ "$pass" != "1" ]; then
+            echo "::error::覆盖率 ${pr_rate}% 低于基线 ${base_rate}%，请为改动补充测试"
+            exit 1
+          fi
+
+      - name: Comment coverage on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            覆盖率：**${{ env.pr_rate }}%**（基线 `${{ github.base_ref }}`：**${{ env.base_rate }}%**）
