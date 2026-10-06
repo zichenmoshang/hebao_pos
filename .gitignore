@@ -25,6 +25,7 @@ Generated.xcconfig
 .pub/
 /build/
 .fvm/
+coverage/
 
 # Symbolication / Obfuscation
 app.*.symbols
