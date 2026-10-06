@@ -2,51 +2,22 @@ name: Release
 
 # 推送 v 开头的 tag 时自动构建 APK 并发布到 GitHub Releases。
 # 约定：tag 名与 pubspec.yaml 的 version 保持一致，如 v1.0.0。
-# workflow_dispatch 用于手动验证 integration-test（不发版），
-# 避免每次调发版门禁都要打 tag；build-and-release 仅限 tag 推送触发。
+#
+# 发版门禁说明：CI 上只保留 ci.yml 的 analyze + 单测；集成测试
+# （integration_test/）不跑在 GitHub runner 上——免费 runner 无 GPU，
+# 软件渲染模拟器整体慢 8-25 倍，单个用例超 7 分钟跑不完（实测 12 用例
+# 本地 87 秒，CI 外推超 1.5 小时）。发版前请本地手动执行：
+#   flutter test integration_test/all_test.dart -d <设备>
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  # 发版拦截：先在模拟器上跑全部集成测试，失败则不构建 APK、发布中止。
-  # 日常 PR 不跑（见 ci.yml），只在真实发版时启用。
-  integration-test:
-    runs-on: ubuntu-latest
-    # 挂死兜底：软件渲染模拟器上 flutter test 可能在装完 APK 后无限静默，
-    # 超时自动失败，不再依赖人工取消（正常一次约 12-18 分钟）
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      # 聚合入口一次构建跑全部用例，比逐文件执行省约 5 分钟。
-      # emulator-options 显式指定软件渲染与无头参数，规避 API 34 镜像
-      # 默认配置下首帧渲染卡死导致的 flutter test 静默挂起；
-      # --reporter expanded 逐条输出用例进度，挂死时能看到最后线索。
-      - name: Run integration tests on Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          arch: x86_64
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
-          script: flutter test integration_test/all_test.dart --reporter expanded -d emulator-5554
-
   build-and-release:
-    needs: integration-test
-    # 手动 dispatch（验证集成测试）时绝不进入构建发版
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
