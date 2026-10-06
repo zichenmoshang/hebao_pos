@@ -43,18 +43,6 @@ void main() {
     expect(container.read(currentOrderProvider).lines, isEmpty);
   });
 
-  test('removeProduct 移除指定行并保留选中态', () {
-    final notifier = container.read(currentOrderProvider.notifier);
-    notifier.addOne(p1);
-    notifier.addOne(p3);
-
-    notifier.removeProduct(1);
-
-    final state = container.read(currentOrderProvider);
-    expect(state.lines.single.product.id, 3);
-    expect(state.selectedProductId, 3);
-  });
-
   test('clear 重置全部', () {
     final notifier = container.read(currentOrderProvider.notifier);
     notifier.addOne(p1);

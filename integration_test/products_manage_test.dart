@@ -149,7 +149,7 @@ void main() {
     expect(find.text('暂无在售商品'), findsNothing);
   });
 
-  testWidgets('边界：0 元商品当前可保存（待产品确认是否拦截）', (tester) async {
+  testWidgets('边界：单价允许 0 元（赠送类商品）', (tester) async {
     await launchApp(tester);
     await openProducts(tester);
 
@@ -160,7 +160,7 @@ void main() {
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
-    // 现状：0 元商品保存成功并出现在列表（无「单价需大于 0」校验）
+    // 规则确认：0 元商品可保存并出现在列表（PRD 4.3 明确允许 0 元）
     expect(find.text('免费咸菜'), findsOneWidget);
     expect(find.text('¥0.0/个'), findsOneWidget);
   });
