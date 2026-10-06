@@ -62,7 +62,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('初始化数据'),
         content: const Text(
-          '将清空全部订单、商品、成本等业务数据，并恢复默认 5 个商品。\n\n此操作不可恢复，确定继续吗？',
+          '将清空全部订单、商品、成本等业务数据，并恢复默认 6 个商品。\n\n此操作不可恢复，确定继续吗？',
         ),
         actions: [
           TextButton(
@@ -296,7 +296,9 @@ class _CardShell extends StatelessWidget {
         borderRadius: BorderRadius.circular(UiScale.scale(14)),
         border: Border.all(color: AppColors.border),
       ),
-      child: child,
+      // ListTile 需要在最近的 Material 上绘制背景与水波纹：
+      // 中间隔着 DecoratedBox 会触发框架断言（debug 下直接报错）
+      child: Material(color: Colors.transparent, child: child),
     );
   }
 }

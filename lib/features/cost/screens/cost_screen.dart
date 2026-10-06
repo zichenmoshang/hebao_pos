@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/repositories/cost_repository.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/utils/money.dart';
+import '../../stats/providers/stats_providers.dart';
 import '../providers/cost_providers.dart';
 import '../widgets/cost_filter_bar.dart';
 import '../widgets/cost_record_form.dart';
@@ -96,6 +97,10 @@ class _CostScreenState extends ConsumerState<CostScreen> {
     // 分页流水随区间/数据变化重建首页
     ref.invalidate(pagedCostRecordsProvider);
     ref.invalidate(activeCostCategoriesProvider);
+    // 统计页成本卡片（采购额 / 毛利 / 类目分布）无监听时仍缓存，
+    // 采购数据变化后需同步失效，否则重进统计页显示旧值
+    ref.invalidate(statsCostTotalProvider);
+    ref.invalidate(statsCategoryBreakdownProvider);
   }
 
   @override
@@ -131,7 +136,8 @@ class _CostScreenState extends ConsumerState<CostScreen> {
       body: SafeArea(
         child: ListView(
           controller: _scrollController,
-          padding: EdgeInsets.fromLTRB(pad, pad, pad, UiScale.scale(72)),
+          // FAB 高 56 + 下边距 16 不随 UiScale 缩放，底部预留固定值避免遮挡末行
+          padding: EdgeInsets.fromLTRB(pad, pad, pad, 88),
           children: [
             const CostFilterBar(),
             SizedBox(height: pad),

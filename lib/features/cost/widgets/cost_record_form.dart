@@ -137,10 +137,12 @@ class _CostRecordFormState extends ConsumerState<CostRecordForm> {
         top: UiScale.scale(12),
         bottom: MediaQuery.of(context).viewInsets.bottom + UiScale.scale(16),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      // 键盘弹起时可用高度被压缩，内容可滚动避免底部溢出
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Container(
             alignment: Alignment.center,
             padding: EdgeInsets.only(bottom: UiScale.scale(8)),
@@ -280,7 +282,8 @@ class _CostRecordFormState extends ConsumerState<CostRecordForm> {
               ),
             ],
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

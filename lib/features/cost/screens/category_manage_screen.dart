@@ -118,7 +118,8 @@ class CategoryManageScreen extends ConsumerWidget {
                 UiScale.scale(12),
                 UiScale.scale(12),
                 UiScale.scale(12),
-                UiScale.scale(80),
+                // FAB 高 56 + 下边距 16 不随 UiScale 缩放，底部预留固定值避免遮挡末行
+                88,
               ),
               itemCount: list.length,
               separatorBuilder: (_, _) =>
