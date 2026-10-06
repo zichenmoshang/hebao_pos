@@ -93,9 +93,10 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
       // 先落库（单事务写 orders + 明细），成功后再清空内存订单
       await ref.read(orderRepositoryProvider).checkout(lines);
       _checkoutTimeoutTimer?.cancel();
-      // 超时期间已释放锁，后续完成回调不再触碰订单状态
-      if (_checkoutTimedOut) return;
 
+      // 落库成功必须清零并刷新统计，即便已超过兜底超时：
+      // 慢设备上写库可能超过 500ms，此时锁已释放，若不清零，
+      // 界面重显旧金额，用户再点「结账」会重复落库同一笔
       AppHaptics.medium(ref);
       notifier.clear();
       if (mounted) {

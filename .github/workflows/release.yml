@@ -25,12 +25,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # 聚合入口一次构建跑全部用例，比逐文件执行省约 5 分钟
       - name: Run integration tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
-          script: flutter test integration_test
+          script: flutter test integration_test/all_test.dart
 
   build-and-release:
     needs: integration-test

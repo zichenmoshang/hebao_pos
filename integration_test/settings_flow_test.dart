@@ -77,8 +77,10 @@ void main() {
     expect(find.text('初始化数据'), findsOneWidget);
 
     await tester.tap(find.text('确定初始化'));
+    // 慢设备上初始化（清库 + 复制图片）耗时可能超过 snackbar 的 4 秒展示期，
+    // 不能先 pumpAndSettle 再断言，改为轮询等待其出现
+    await pumpUntilFound(tester, find.text('数据已初始化'));
     await tester.pumpAndSettle();
-    expect(find.text('数据已初始化'), findsOneWidget);
 
     // 回收银页：流水清零、恢复 6 个默认商品、自增商品消失
     await goBack(tester);
