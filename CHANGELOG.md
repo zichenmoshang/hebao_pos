@@ -2,6 +2,13 @@
 
 本文件记录和宝小吃（hebao_pos）的版本变更，格式参考 [Keep a Changelog](https://keepachangelog.com/)。
 
+## [1.3.0](https://github.com/zichenmoshang/hebao_pos/compare/v1.2.2...v1.3.0) (2026-10-10)
+
+
+### Features
+
+* 数字键盘弹层 10~30 快捷档位 + 堂食/打包拆分与待打包清单 ([#15](https://github.com/zichenmoshang/hebao_pos/issues/15)) ([8f12b7b](https://github.com/zichenmoshang/hebao_pos/commit/8f12b7b4978c4ab4bceb86713440ba1976fcb01d))
+
 ## [1.2.2](https://github.com/zichenmoshang/hebao_pos/compare/v1.2.1...v1.2.2) (2026-10-06)
 
 
