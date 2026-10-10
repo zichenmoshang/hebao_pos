@@ -52,6 +52,7 @@ void main() {
     required String name,
     required int unitPriceCents,
     required int quantity,
+    String channel = 'dine_in',
   }) {
     return db.into(db.orderItems).insert(
           OrderItemsCompanion.insert(
@@ -61,6 +62,7 @@ void main() {
             unitPriceCents: unitPriceCents,
             quantity: quantity,
             lineTotalCents: unitPriceCents * quantity,
+            channel: Value(channel),
           ),
         );
   }
@@ -368,6 +370,117 @@ void main() {
       expect(items.map((e) => e.name), ['肉锅贴', '豆浆']);
       expect(items.map((e) => e.quantity), [2, 1]);
       expect(items.map((e) => e.amountCents), [160, 200]);
+    });
+  });
+
+  group('堂食/打包与待交付', () {
+    test('checkout 写入通道；打包行默认待交付，堂食行无交付状态', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+
+      await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 8,
+        ),
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 4,
+          channel: OrderChannel.takeout,
+        ),
+      ]);
+
+      final items = await db.select(db.orderItems).get();
+      expect(items, hasLength(2));
+      final dine = items.singleWhere((e) => e.channel == 'dine_in');
+      final take = items.singleWhere((e) => e.channel == 'takeout');
+      expect(dine.quantity, 8);
+      expect(dine.deliveredAt, isNull);
+      expect(take.quantity, 4);
+      expect(take.deliveredAt, isNull);
+    });
+
+    test('pendingTakeoutItems 只含未交付打包行，按下单时间升序', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      final base = DateTime(2026, 10, 2, 8);
+      final later = await insertOrder(totalCents: 80, createdAt: base);
+      final earlier =
+          await insertOrder(totalCents: 160, createdAt: base.subtract(
+        const Duration(hours: 1),
+      ));
+      // 堂食行不应出现
+      await insertItem(
+        orderId: earlier,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 2,
+      );
+      await insertItem(
+        orderId: earlier,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 1,
+        channel: 'takeout',
+      );
+      await insertItem(
+        orderId: later,
+        productId: 1,
+        name: '肉锅贴',
+        unitPriceCents: 80,
+        quantity: 3,
+        channel: 'takeout',
+      );
+
+      final pending = await repo.pendingTakeoutItems();
+      expect(pending.map((e) => e.quantity), [1, 3]);
+      expect(pending.first.orderCreatedAt.hour, 7);
+    });
+
+    test('交付后移出待打包并进入已交付列表，可撤销恢复', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      final orderId = await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 4,
+          channel: OrderChannel.takeout,
+        ),
+      ]);
+      final itemId = (await repo.pendingTakeoutItems()).single.itemId;
+
+      await repo.markTakeoutDelivered(itemId);
+      expect(await repo.pendingTakeoutItems(), isEmpty);
+      final delivered = await repo.deliveredTakeoutItems();
+      expect(delivered.single.itemId, itemId);
+      expect(delivered.single.orderId, orderId);
+      expect(delivered.single.deliveredAtMs, isNotNull);
+
+      await repo.markTakeoutUndelivered(itemId);
+      expect(await repo.deliveredTakeoutItems(), isEmpty);
+      expect((await repo.pendingTakeoutItems()).single.itemId, itemId);
+    });
+
+    test('itemsOfOrder 带回堂/外标记与交付状态', () async {
+      await seedProduct(id: 1, name: '肉锅贴', priceCents: 80);
+      final orderId = await repo.checkout([
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 8,
+        ),
+        const OrderLine(
+          product: Product(id: 1, name: '肉锅贴', priceCents: 80),
+          quantity: 4,
+          channel: OrderChannel.takeout,
+        ),
+      ]);
+
+      final items = await repo.itemsOfOrder(orderId);
+      final dine =
+          items.singleWhere((e) => e.channel == OrderChannel.dineIn);
+      final take =
+          items.singleWhere((e) => e.channel == OrderChannel.takeout);
+      expect(dine.isDelivered, isFalse);
+      expect(take.isDelivered, isFalse);
     });
   });
 

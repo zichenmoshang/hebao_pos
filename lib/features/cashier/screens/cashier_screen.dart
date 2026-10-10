@@ -12,10 +12,12 @@ import '../../../core/utils/money.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../stats/providers/stats_providers.dart';
 import '../providers/current_order_provider.dart';
+import '../providers/pending_takeout_provider.dart';
 import '../providers/today_summary_provider.dart';
+import '../widgets/pending_takeout_sheet.dart';
 import '../widgets/product_card.dart';
-import '../widgets/quantity_pad_sheet.dart';
 import '../widgets/quick_quantity_bar.dart';
+import '../widgets/quick_quantity_sheet.dart';
 
 /// 收银主页：整块屏幕留给计价，低频操作收入抽屉，无底部 Tab
 class CashierScreen extends ConsumerStatefulWidget {
@@ -52,14 +54,10 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     super.dispose();
   }
 
-  Future<void> _openKeyboard() async {
+  Future<void> _openQuickSheet() async {
     final order = ref.read(currentOrderProvider);
-    final id = order.selectedProductId;
-    if (id == null) return;
-    final result = await QuantityPadSheet.show(
-      context,
-      initial: order.selectedQuantity(id).clamp(1, 1 << 30),
-    );
+    if (order.selectedProductId == null) return;
+    final result = await QuickQuantitySheet.show(context);
     if (result != null) {
       ref.read(currentOrderProvider.notifier).setSelectedQuantity(result);
     }
@@ -101,6 +99,8 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
       notifier.clear();
       if (mounted) {
         ref.invalidate(todaySummaryProvider);
+        // 新结账单可能含打包行，待打包角标与清单立即刷新
+        ref.invalidate(pendingTakeoutProvider);
         // 统计页 provider 无监听时仍缓存，结账后重进统计页应看到新数据
         ref.invalidate(statsSummaryProvider);
         ref.invalidate(statsDailyRevenueProvider);
@@ -124,6 +124,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     final productsAsync = ref.watch(activeProductsProvider);
     final order = ref.watch(currentOrderProvider);
     final todayAsync = ref.watch(todaySummaryProvider);
+    final pendingTakeoutAsync = ref.watch(pendingTakeoutProvider);
     final notifier = ref.read(currentOrderProvider.notifier);
     final pad = UiScale.scale(12);
 
@@ -137,10 +138,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     // 选中商品已从在售列表消失（停用）时不再回退到首个商品，返回 null
     final selectedName = selectedId == null
         ? null
-        : products
-              .where((p) => p.id == selectedId)
-              .firstOrNull
-              ?.name;
+        : products.where((p) => p.id == selectedId).firstOrNull?.name;
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -160,69 +158,80 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _TopBar(today: today),
+                _TopBar(
+                  today: today,
+                  pendingTakeoutCount: pendingTakeoutAsync.value?.length ?? 0,
+                  onOpenPending: () => PendingTakeoutSheet.show(context),
+                ),
                 _AmountPanel(order: order),
                 Expanded(
                   child: products.isEmpty
                       ? const _EmptyProductsView()
                       : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final spacing = UiScale.scale(10);
-                      final cellW =
-                          (constraints.maxWidth - spacing * 2) / 3;
-                      final rows = (products.length / 3).ceil();
+                          builder: (context, constraints) {
+                            final spacing = UiScale.scale(10);
+                            final cellW =
+                                (constraints.maxWidth - spacing * 2) / 3;
+                            final rows = (products.length / 3).ceil();
 
-                      double aspectRatio;
-                      bool scrollable;
-                      if (rows <= 3) {
-                        // 三排及以内：卡片高度精确适配可用空间，完整显示、不滚动
-                        final cellH =
-                            (constraints.maxHeight - (rows - 1) * spacing) /
-                                rows;
-                        aspectRatio = cellW / cellH;
-                        scrollable = false;
-                      } else {
-                        // 四排及以上：固定宽高比，超出部分滚动
-                        aspectRatio = 0.72;
-                        scrollable = true;
-                      }
+                            double aspectRatio;
+                            bool scrollable;
+                            if (rows <= 3) {
+                              // 三排及以内：卡片高度精确适配可用空间，完整显示、不滚动
+                              final cellH =
+                                  (constraints.maxHeight -
+                                      (rows - 1) * spacing) /
+                                  rows;
+                              aspectRatio = cellW / cellH;
+                              scrollable = false;
+                            } else {
+                              // 四排及以上：固定宽高比，超出部分滚动
+                              aspectRatio = 0.72;
+                              scrollable = true;
+                            }
 
-                      return GridView.builder(
-                        physics: scrollable
-                            ? null
-                            : const NeverScrollableScrollPhysics(),
-                        itemCount: products.length,
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: spacing,
-                          crossAxisSpacing: spacing,
-                          childAspectRatio: aspectRatio,
+                            return GridView.builder(
+                              physics: scrollable
+                                  ? null
+                                  : const NeverScrollableScrollPhysics(),
+                              itemCount: products.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: spacing,
+                                    crossAxisSpacing: spacing,
+                                    childAspectRatio: aspectRatio,
+                                  ),
+                              itemBuilder: (context, i) {
+                                final product = products[i];
+                                return ProductCard(
+                                  product: product,
+                                  dineQuantity: order.dineQuantityOf(
+                                    product.id,
+                                  ),
+                                  takeQuantity: order.takeQuantityOf(
+                                    product.id,
+                                  ),
+                                  selected: selectedId == product.id,
+                                  onTap: () {
+                                    AppHaptics.light(ref);
+                                    notifier.addOne(product);
+                                  },
+                                );
+                              },
+                            );
+                          },
                         ),
-                        itemBuilder: (context, i) {
-                          final product = products[i];
-                          return ProductCard(
-                            product: product,
-                            quantity:
-                                order.selectedQuantity(product.id),
-                            selected: selectedId == product.id,
-                            onTap: () {
-                              AppHaptics.light(ref);
-                              notifier.addOne(product);
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
                 ),
                 SizedBox(height: pad),
                 QuickQuantityBar(
                   hasSelection: selectedName != null,
                   selectedName: selectedName,
+                  channel: order.selectedChannel,
+                  onChannelChanged: notifier.setChannel,
                   onPick: notifier.setSelectedQuantity,
                   onClear: () => notifier.setSelectedQuantity(0),
-                  onOpenKeyboard: _openKeyboard,
+                  onOpenQuickSheet: _openQuickSheet,
                 ),
                 SizedBox(height: pad),
                 _CheckoutBar(
@@ -249,8 +258,11 @@ class _EmptyProductsView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.inventory_2_outlined,
-              color: AppColors.textMuted, size: 48),
+          const Icon(
+            Icons.inventory_2_outlined,
+            color: AppColors.textMuted,
+            size: 48,
+          ),
           SizedBox(height: UiScale.scale(12)),
           Text(
             '暂无在售商品',
@@ -273,14 +285,23 @@ class _EmptyProductsView extends StatelessWidget {
   }
 }
 
-/// 顶部栏：菜单按钮 + 当日流水（金额 / 订单数）
+/// 顶部栏：菜单按钮 + 待打包入口 + 当日流水（金额 / 订单数）
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.today});
+  const _TopBar({
+    required this.today,
+    required this.pendingTakeoutCount,
+    required this.onOpenPending,
+  });
 
   final OrderSummary today;
 
+  /// 待交付的打包明细条数；0 时入口弱化但常驻，避免布局跳动
+  final int pendingTakeoutCount;
+  final VoidCallback onOpenPending;
+
   @override
   Widget build(BuildContext context) {
+    final hasPending = pendingTakeoutCount > 0;
     return SizedBox(
       height: UiScale.scale(40),
       child: Row(
@@ -295,44 +316,69 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-          const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  const TextSpan(text: '今日流水 '),
-                  TextSpan(
-                    text: formatCents(today.totalCents),
-                    style: const TextStyle(color: AppColors.selected),
-                  ),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: UiScale.scale(18),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w400,
+          SizedBox(width: UiScale.scale(12)),
+          // 紧凑入口：袋子图标 + 条数，把横向空间留给右侧流水文本
+          Tooltip(
+            message: '待打包',
+            child: GestureDetector(
+              onTap: onOpenPending,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: UiScale.scale(10),
+                  vertical: UiScale.scale(5),
+                ),
+                decoration: BoxDecoration(
+                  color: hasPending ? AppColors.selected : AppColors.button,
+                  borderRadius: BorderRadius.circular(UiScale.scale(10)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      size: UiScale.scale(18),
+                      color: hasPending ? Colors.white : AppColors.textMuted,
+                    ),
+                    SizedBox(width: UiScale.scale(4)),
+                    Text(
+                      '$pendingTakeoutCount',
+                      style: TextStyle(
+                        fontSize: UiScale.scale(15),
+                        fontWeight: FontWeight.w800,
+                        color: hasPending ? Colors.white : AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          SizedBox(width: UiScale.scale(16)),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  const TextSpan(text: '今日 '),
-                  TextSpan(
-                    text: '${today.orderCount}',
-                    style: const TextStyle(color: AppColors.selected),
-                  ),
-                  const TextSpan(text: ' 单'),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: UiScale.scale(18),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w400,
+          // 合并为一条文本独占剩余空间：自然大小放下，放不下时 FittedBox 整体缩小
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: '今日流水 '),
+                    TextSpan(
+                      text: formatCents(today.totalCents),
+                      style: const TextStyle(color: AppColors.selected),
+                    ),
+                    const TextSpan(text: ' · '),
+                    TextSpan(
+                      text: '${today.orderCount}',
+                      style: const TextStyle(color: AppColors.selected),
+                    ),
+                    const TextSpan(text: ' 单'),
+                  ],
+                ),
+                style: TextStyle(
+                  fontSize: UiScale.scale(18),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),

@@ -119,7 +119,7 @@ final pagedStatsOrdersProvider = AsyncNotifierProvider<StatsOrdersNotifier,
 
 /// 某订单的明细行
 final orderItemsProvider =
-    FutureProvider.family<List<ProductSales>, int>((ref, orderId) async {
+    FutureProvider.family<List<OrderItemRecord>, int>((ref, orderId) async {
   return ref.watch(orderRepositoryProvider).itemsOfOrder(orderId);
 });
 

@@ -855,6 +855,29 @@ class $OrderItemsTable extends OrderItems
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _channelMeta = const VerificationMeta(
+    'channel',
+  );
+  @override
+  late final GeneratedColumn<String> channel = GeneratedColumn<String>(
+    'channel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('dine_in'),
+  );
+  static const VerificationMeta _deliveredAtMeta = const VerificationMeta(
+    'deliveredAt',
+  );
+  @override
+  late final GeneratedColumn<int> deliveredAt = GeneratedColumn<int>(
+    'delivered_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -864,6 +887,8 @@ class $OrderItemsTable extends OrderItems
     unitPriceCents,
     quantity,
     lineTotalCents,
+    channel,
+    deliveredAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -937,6 +962,21 @@ class $OrderItemsTable extends OrderItems
     } else if (isInserting) {
       context.missing(_lineTotalCentsMeta);
     }
+    if (data.containsKey('channel')) {
+      context.handle(
+        _channelMeta,
+        channel.isAcceptableOrUnknown(data['channel']!, _channelMeta),
+      );
+    }
+    if (data.containsKey('delivered_at')) {
+      context.handle(
+        _deliveredAtMeta,
+        deliveredAt.isAcceptableOrUnknown(
+          data['delivered_at']!,
+          _deliveredAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -974,6 +1014,14 @@ class $OrderItemsTable extends OrderItems
         DriftSqlType.int,
         data['${effectivePrefix}line_total_cents'],
       )!,
+      channel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channel'],
+      )!,
+      deliveredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}delivered_at'],
+      ),
     );
   }
 
@@ -1003,6 +1051,12 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
 
   /// 该行小计（分）
   final int lineTotalCents;
+
+  /// 堂食 / 打包：dine_in / takeout；历史数据默认堂食
+  final String channel;
+
+  /// 打包行交付时间（Unix 毫秒）；仅 takeout 行有意义，null = 待交付
+  final int? deliveredAt;
   const OrderItem({
     required this.id,
     required this.orderId,
@@ -1011,6 +1065,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     required this.unitPriceCents,
     required this.quantity,
     required this.lineTotalCents,
+    required this.channel,
+    this.deliveredAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1022,6 +1078,10 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     map['unit_price_cents'] = Variable<int>(unitPriceCents);
     map['quantity'] = Variable<int>(quantity);
     map['line_total_cents'] = Variable<int>(lineTotalCents);
+    map['channel'] = Variable<String>(channel);
+    if (!nullToAbsent || deliveredAt != null) {
+      map['delivered_at'] = Variable<int>(deliveredAt);
+    }
     return map;
   }
 
@@ -1034,6 +1094,10 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       unitPriceCents: Value(unitPriceCents),
       quantity: Value(quantity),
       lineTotalCents: Value(lineTotalCents),
+      channel: Value(channel),
+      deliveredAt: deliveredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deliveredAt),
     );
   }
 
@@ -1050,6 +1114,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       unitPriceCents: serializer.fromJson<int>(json['unitPriceCents']),
       quantity: serializer.fromJson<int>(json['quantity']),
       lineTotalCents: serializer.fromJson<int>(json['lineTotalCents']),
+      channel: serializer.fromJson<String>(json['channel']),
+      deliveredAt: serializer.fromJson<int?>(json['deliveredAt']),
     );
   }
   @override
@@ -1063,6 +1129,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       'unitPriceCents': serializer.toJson<int>(unitPriceCents),
       'quantity': serializer.toJson<int>(quantity),
       'lineTotalCents': serializer.toJson<int>(lineTotalCents),
+      'channel': serializer.toJson<String>(channel),
+      'deliveredAt': serializer.toJson<int?>(deliveredAt),
     };
   }
 
@@ -1074,6 +1142,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     int? unitPriceCents,
     int? quantity,
     int? lineTotalCents,
+    String? channel,
+    Value<int?> deliveredAt = const Value.absent(),
   }) => OrderItem(
     id: id ?? this.id,
     orderId: orderId ?? this.orderId,
@@ -1082,6 +1152,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     unitPriceCents: unitPriceCents ?? this.unitPriceCents,
     quantity: quantity ?? this.quantity,
     lineTotalCents: lineTotalCents ?? this.lineTotalCents,
+    channel: channel ?? this.channel,
+    deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
   );
   OrderItem copyWithCompanion(OrderItemsCompanion data) {
     return OrderItem(
@@ -1098,6 +1170,10 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
       lineTotalCents: data.lineTotalCents.present
           ? data.lineTotalCents.value
           : this.lineTotalCents,
+      channel: data.channel.present ? data.channel.value : this.channel,
+      deliveredAt: data.deliveredAt.present
+          ? data.deliveredAt.value
+          : this.deliveredAt,
     );
   }
 
@@ -1110,7 +1186,9 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
           ..write('productName: $productName, ')
           ..write('unitPriceCents: $unitPriceCents, ')
           ..write('quantity: $quantity, ')
-          ..write('lineTotalCents: $lineTotalCents')
+          ..write('lineTotalCents: $lineTotalCents, ')
+          ..write('channel: $channel, ')
+          ..write('deliveredAt: $deliveredAt')
           ..write(')'))
         .toString();
   }
@@ -1124,6 +1202,8 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
     unitPriceCents,
     quantity,
     lineTotalCents,
+    channel,
+    deliveredAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1135,7 +1215,9 @@ class OrderItem extends DataClass implements Insertable<OrderItem> {
           other.productName == this.productName &&
           other.unitPriceCents == this.unitPriceCents &&
           other.quantity == this.quantity &&
-          other.lineTotalCents == this.lineTotalCents);
+          other.lineTotalCents == this.lineTotalCents &&
+          other.channel == this.channel &&
+          other.deliveredAt == this.deliveredAt);
 }
 
 class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
@@ -1146,6 +1228,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
   final Value<int> unitPriceCents;
   final Value<int> quantity;
   final Value<int> lineTotalCents;
+  final Value<String> channel;
+  final Value<int?> deliveredAt;
   const OrderItemsCompanion({
     this.id = const Value.absent(),
     this.orderId = const Value.absent(),
@@ -1154,6 +1238,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     this.unitPriceCents = const Value.absent(),
     this.quantity = const Value.absent(),
     this.lineTotalCents = const Value.absent(),
+    this.channel = const Value.absent(),
+    this.deliveredAt = const Value.absent(),
   });
   OrderItemsCompanion.insert({
     this.id = const Value.absent(),
@@ -1163,6 +1249,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     required int unitPriceCents,
     required int quantity,
     required int lineTotalCents,
+    this.channel = const Value.absent(),
+    this.deliveredAt = const Value.absent(),
   }) : orderId = Value(orderId),
        productId = Value(productId),
        productName = Value(productName),
@@ -1177,6 +1265,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     Expression<int>? unitPriceCents,
     Expression<int>? quantity,
     Expression<int>? lineTotalCents,
+    Expression<String>? channel,
+    Expression<int>? deliveredAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1186,6 +1276,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
       if (unitPriceCents != null) 'unit_price_cents': unitPriceCents,
       if (quantity != null) 'quantity': quantity,
       if (lineTotalCents != null) 'line_total_cents': lineTotalCents,
+      if (channel != null) 'channel': channel,
+      if (deliveredAt != null) 'delivered_at': deliveredAt,
     });
   }
 
@@ -1197,6 +1289,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     Value<int>? unitPriceCents,
     Value<int>? quantity,
     Value<int>? lineTotalCents,
+    Value<String>? channel,
+    Value<int?>? deliveredAt,
   }) {
     return OrderItemsCompanion(
       id: id ?? this.id,
@@ -1206,6 +1300,8 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
       unitPriceCents: unitPriceCents ?? this.unitPriceCents,
       quantity: quantity ?? this.quantity,
       lineTotalCents: lineTotalCents ?? this.lineTotalCents,
+      channel: channel ?? this.channel,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
     );
   }
 
@@ -1233,6 +1329,12 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
     if (lineTotalCents.present) {
       map['line_total_cents'] = Variable<int>(lineTotalCents.value);
     }
+    if (channel.present) {
+      map['channel'] = Variable<String>(channel.value);
+    }
+    if (deliveredAt.present) {
+      map['delivered_at'] = Variable<int>(deliveredAt.value);
+    }
     return map;
   }
 
@@ -1245,7 +1347,9 @@ class OrderItemsCompanion extends UpdateCompanion<OrderItem> {
           ..write('productName: $productName, ')
           ..write('unitPriceCents: $unitPriceCents, ')
           ..write('quantity: $quantity, ')
-          ..write('lineTotalCents: $lineTotalCents')
+          ..write('lineTotalCents: $lineTotalCents, ')
+          ..write('channel: $channel, ')
+          ..write('deliveredAt: $deliveredAt')
           ..write(')'))
         .toString();
   }
@@ -2629,6 +2733,8 @@ typedef $$OrderItemsTableCreateCompanionBuilder = OrderItemsCompanion Function({
   required int unitPriceCents,
   required int quantity,
   required int lineTotalCents,
+  Value<String> channel,
+  Value<int?> deliveredAt,
 });
 typedef $$OrderItemsTableUpdateCompanionBuilder = OrderItemsCompanion Function({
   Value<int> id,
@@ -2638,6 +2744,8 @@ typedef $$OrderItemsTableUpdateCompanionBuilder = OrderItemsCompanion Function({
   Value<int> unitPriceCents,
   Value<int> quantity,
   Value<int> lineTotalCents,
+  Value<String> channel,
+  Value<int?> deliveredAt,
 });
 
 final class $$OrderItemsTableReferences
@@ -2710,6 +2818,16 @@ class $$OrderItemsTableFilterComposer
 
   ColumnFilters<int> get lineTotalCents => $composableBuilder(
     column: $table.lineTotalCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deliveredAt => $composableBuilder(
+    column: $table.deliveredAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2794,6 +2912,16 @@ class $$OrderItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deliveredAt => $composableBuilder(
+    column: $table.deliveredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$OrdersTableOrderingComposer get orderId {
     final $$OrdersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2868,6 +2996,14 @@ class $$OrderItemsTableAnnotationComposer
 
   GeneratedColumn<int> get lineTotalCents => $composableBuilder(
     column: $table.lineTotalCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get channel =>
+      $composableBuilder(column: $table.channel, builder: (column) => column);
+
+  GeneratedColumn<int> get deliveredAt => $composableBuilder(
+    column: $table.deliveredAt,
     builder: (column) => column,
   );
 
@@ -2953,6 +3089,8 @@ class $$OrderItemsTableTableManager
                 Value<int> unitPriceCents = const Value.absent(),
                 Value<int> quantity = const Value.absent(),
                 Value<int> lineTotalCents = const Value.absent(),
+                Value<String> channel = const Value.absent(),
+                Value<int?> deliveredAt = const Value.absent(),
               }) => OrderItemsCompanion(
                 id: id,
                 orderId: orderId,
@@ -2961,6 +3099,8 @@ class $$OrderItemsTableTableManager
                 unitPriceCents: unitPriceCents,
                 quantity: quantity,
                 lineTotalCents: lineTotalCents,
+                channel: channel,
+                deliveredAt: deliveredAt,
               ),
           createCompanionCallback:
               ({
@@ -2971,6 +3111,8 @@ class $$OrderItemsTableTableManager
                 required int unitPriceCents,
                 required int quantity,
                 required int lineTotalCents,
+                Value<String> channel = const Value.absent(),
+                Value<int?> deliveredAt = const Value.absent(),
               }) => OrderItemsCompanion.insert(
                 id: id,
                 orderId: orderId,
@@ -2979,6 +3121,8 @@ class $$OrderItemsTableTableManager
                 unitPriceCents: unitPriceCents,
                 quantity: quantity,
                 lineTotalCents: lineTotalCents,
+                channel: channel,
+                deliveredAt: deliveredAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

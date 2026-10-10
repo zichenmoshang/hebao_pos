@@ -1,43 +1,48 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../shared/models/order_line.dart';
 
-/// 快捷数量区：头部「清除 / 数量 / 提示 / ⌨」+ 2~9（语义为「设为 N」）。
+/// 快捷数量区：头部「清除 / 堂食·打包切换 / 数量 / 提示 / 大数量入口」+ 2~9（语义为「设为 N」）。
 /// 固定占位，未选中商品时弱化并显示引导文案，高度不跳动。
 class QuickQuantityBar extends StatelessWidget {
   const QuickQuantityBar({
     super.key,
     required this.hasSelection,
     required this.selectedName,
+    required this.channel,
+    required this.onChannelChanged,
     required this.onPick,
     required this.onClear,
-    required this.onOpenKeyboard,
+    required this.onOpenQuickSheet,
   });
 
   final bool hasSelection;
   final String? selectedName;
+  final OrderChannel channel;
+  final ValueChanged<OrderChannel> onChannelChanged;
   final ValueChanged<int> onPick;
   final VoidCallback onClear;
-  final VoidCallback onOpenKeyboard;
+  final VoidCallback onOpenQuickSheet;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: hasSelection ? 1 : 0.5,
-      child: Container(
-        padding: EdgeInsets.all(UiScale.scale(12)),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(UiScale.scale(20)),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                // 「清除」描边按钮：将当前选中商品数量设为 0
-                OutlinedButton(
+    return Container(
+      padding: EdgeInsets.all(UiScale.scale(12)),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(UiScale.scale(20)),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              // 依赖选中态的部分未选中时弱化；堂/外是全局模式，常驻高亮
+              _DimWhenIdle(
+                dim: !hasSelection,
+                child: OutlinedButton(
                   onPressed: hasSelection ? onClear : null,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
@@ -45,11 +50,14 @@ class QuickQuantityBar extends StatelessWidget {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: EdgeInsets.symmetric(
-                        horizontal: UiScale.scale(14), vertical: UiScale.scale(8)),
+                      horizontal: UiScale.scale(14),
+                      vertical: UiScale.scale(8),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(UiScale.scale(10)),
                     ),
                   ),
+                  // 「清除」描边按钮：将当前选中商品当前通道数量设为 0
                   child: Text(
                     '清除',
                     style: TextStyle(
@@ -59,10 +67,20 @@ class QuickQuantityBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: UiScale.scale(10)),
-                Container(width: 1, height: UiScale.scale(34), color: AppColors.border),
-                SizedBox(width: UiScale.scale(10)),
-                Expanded(
+              ),
+              SizedBox(width: UiScale.scale(10)),
+              Container(
+                width: 1,
+                height: UiScale.scale(34),
+                color: AppColors.border,
+              ),
+              SizedBox(width: UiScale.scale(10)),
+              // 堂食 / 打包切换：决定点卡片 +1 与快捷数字落在哪个通道，不置灰
+              _ChannelToggle(channel: channel, onChanged: onChannelChanged),
+              SizedBox(width: UiScale.scale(10)),
+              Expanded(
+                child: _DimWhenIdle(
+                  dim: !hasSelection,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -76,24 +94,33 @@ class QuickQuantityBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: UiScale.scale(8)),
-                _KeyboardButton(onTap: hasSelection ? onOpenKeyboard : null),
-              ],
-            ),
-            SizedBox(height: UiScale.scale(12)),
-            for (final row in [
-              [2, 3, 4, 5],
-              [6, 7, 8, 9],
-            ])
-              Padding(
-                padding: EdgeInsets.only(bottom: UiScale.scale(10)),
+              ),
+              SizedBox(width: UiScale.scale(8)),
+              _DimWhenIdle(
+                dim: !hasSelection,
+                child: _QuickSheetButton(
+                  onTap: hasSelection ? onOpenQuickSheet : null,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: UiScale.scale(12)),
+          for (final row in [
+            [2, 3, 4, 5],
+            [6, 7, 8, 9],
+          ])
+            Padding(
+              padding: EdgeInsets.only(bottom: UiScale.scale(10)),
+              child: _DimWhenIdle(
+                dim: !hasSelection,
                 child: Row(
                   children: [
                     for (final n in row)
                       Expanded(
                         child: Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: UiScale.scale(7)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: UiScale.scale(7),
+                          ),
                           child: _Key(
                             label: '$n',
                             onTap: hasSelection ? () => onPick(n) : null,
@@ -103,16 +130,80 @@ class QuickQuantityBar extends StatelessWidget {
                   ],
                 ),
               ),
-          ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 未选中商品时半透明显示（交互由调用方一并禁用）
+class _DimWhenIdle extends StatelessWidget {
+  const _DimWhenIdle({required this.dim, required this.child});
+
+  final bool dim;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(opacity: dim ? 0.5 : 1, child: child);
+  }
+}
+
+/// 堂食 / 打包两段切换：当前通道实心高亮
+class _ChannelToggle extends StatelessWidget {
+  const _ChannelToggle({required this.channel, required this.onChanged});
+
+  final OrderChannel channel;
+  final ValueChanged<OrderChannel> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.button,
+        borderRadius: BorderRadius.circular(UiScale.scale(10)),
+      ),
+      padding: EdgeInsets.all(UiScale.scale(3)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment('堂', OrderChannel.dineIn),
+          _segment('外', OrderChannel.takeout),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String label, OrderChannel value) {
+    final active = channel == value;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: UiScale.scale(12),
+          vertical: UiScale.scale(6),
+        ),
+        decoration: BoxDecoration(
+          color: active ? AppColors.selected : Colors.transparent,
+          borderRadius: BorderRadius.circular(UiScale.scale(8)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: UiScale.scale(16),
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : AppColors.textMuted,
+          ),
         ),
       ),
     );
   }
 }
 
-/// 头部右侧的方形键盘图标按钮
-class _KeyboardButton extends StatelessWidget {
-  const _KeyboardButton({required this.onTap});
+/// 头部右侧的方形大数量入口图标按钮（打开 10~30 快捷点选弹层）
+class _QuickSheetButton extends StatelessWidget {
+  const _QuickSheetButton({required this.onTap});
 
   final VoidCallback? onTap;
 
@@ -129,8 +220,11 @@ class _KeyboardButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(UiScale.scale(10)),
         ),
       ),
-      child: Icon(Icons.keyboard_outlined,
-          size: UiScale.scale(24), color: AppColors.textPrimary),
+      child: Icon(
+        Icons.grid_view_rounded,
+        size: UiScale.scale(24),
+        color: AppColors.textPrimary,
+      ),
     );
   }
 }
