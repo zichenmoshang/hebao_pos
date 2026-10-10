@@ -14,7 +14,8 @@ class QuickQuantitySheet extends StatelessWidget {
       backgroundColor: AppColors.surfaceElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-            top: Radius.circular(UiScale.scale(24))),
+          top: Radius.circular(UiScale.scale(24)),
+        ),
       ),
       builder: (_) => const QuickQuantitySheet(),
     );
@@ -41,13 +42,16 @@ class QuickQuantitySheet extends StatelessWidget {
               ),
             ),
             SizedBox(height: UiScale.scale(12)),
+            // 4 列大键排布：弹层空间充足，键宽、键高都放大，湿手也好按
             for (final row in [
-              [10, 11, 12, 13, 14, 15, 16],
-              [17, 18, 19, 20, 21, 22, 23],
-              [24, 25, 26, 27, 28, 29, 30],
+              [10, 11, 12, 13],
+              [14, 15, 16, 17],
+              [18, 19, 20, 21],
+              [22, 23, 24, 25],
+              [26, 27, 28, 29],
             ])
               Padding(
-                padding: EdgeInsets.only(bottom: UiScale.scale(10)),
+                padding: EdgeInsets.only(bottom: UiScale.scale(12)),
                 child: Row(
                   children: [
                     for (final n in row)
@@ -60,6 +64,8 @@ class QuickQuantitySheet extends StatelessWidget {
                   ],
                 ),
               ),
+            // 30 独占一行全宽：最大单值，放最底部最好够
+            _QuickKey(label: '30', onTap: () => Navigator.pop(context, 30)),
           ],
         ),
       ),
@@ -84,7 +90,7 @@ class _QuickKeyState extends State<_QuickKey> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: UiScale.scale(4)),
+      padding: EdgeInsets.symmetric(horizontal: UiScale.scale(6)),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),
         onTapUp: (_) => setState(() => _pressed = false),
@@ -94,16 +100,16 @@ class _QuickKeyState extends State<_QuickKey> {
           scale: _pressed ? 0.92 : 1,
           duration: const Duration(milliseconds: 90),
           child: Container(
-            height: UiScale.scale(56),
+            height: UiScale.scale(64),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.button,
-              borderRadius: BorderRadius.circular(UiScale.scale(14)),
+              borderRadius: BorderRadius.circular(UiScale.scale(16)),
             ),
             child: Text(
               widget.label,
               style: TextStyle(
-                fontSize: UiScale.scale(22),
+                fontSize: UiScale.scale(26),
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
