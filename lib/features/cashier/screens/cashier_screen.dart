@@ -317,35 +317,39 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           SizedBox(width: UiScale.scale(12)),
-          GestureDetector(
-            onTap: onOpenPending,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: UiScale.scale(10),
-                vertical: UiScale.scale(5),
-              ),
-              decoration: BoxDecoration(
-                color: hasPending ? AppColors.selected : AppColors.button,
-                borderRadius: BorderRadius.circular(UiScale.scale(10)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    size: UiScale.scale(18),
-                    color: hasPending ? Colors.white : AppColors.textMuted,
-                  ),
-                  SizedBox(width: UiScale.scale(4)),
-                  Text(
-                    '待打包 $pendingTakeoutCount',
-                    style: TextStyle(
-                      fontSize: UiScale.scale(15),
-                      fontWeight: FontWeight.w700,
+          // 紧凑入口：袋子图标 + 条数，把横向空间留给右侧流水文本
+          Tooltip(
+            message: '待打包',
+            child: GestureDetector(
+              onTap: onOpenPending,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: UiScale.scale(10),
+                  vertical: UiScale.scale(5),
+                ),
+                decoration: BoxDecoration(
+                  color: hasPending ? AppColors.selected : AppColors.button,
+                  borderRadius: BorderRadius.circular(UiScale.scale(10)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      size: UiScale.scale(18),
                       color: hasPending ? Colors.white : AppColors.textMuted,
                     ),
-                  ),
-                ],
+                    SizedBox(width: UiScale.scale(4)),
+                    Text(
+                      '$pendingTakeoutCount',
+                      style: TextStyle(
+                        fontSize: UiScale.scale(15),
+                        fontWeight: FontWeight.w800,
+                        color: hasPending ? Colors.white : AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
