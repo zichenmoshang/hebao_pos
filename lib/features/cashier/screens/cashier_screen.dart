@@ -354,10 +354,11 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // 窄屏下右侧文本经 Flexible 拿到有界宽度，FittedBox 才能真正缩小
+          // 合并为一条文本独占剩余空间：自然大小放下，放不下时 FittedBox 整体缩小
           Flexible(
             child: FittedBox(
               fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
               child: Text.rich(
                 TextSpan(
                   children: [
@@ -366,24 +367,7 @@ class _TopBar extends StatelessWidget {
                       text: formatCents(today.totalCents),
                       style: const TextStyle(color: AppColors.selected),
                     ),
-                  ],
-                ),
-                style: TextStyle(
-                  fontSize: UiScale.scale(18),
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: UiScale.scale(16)),
-          Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    const TextSpan(text: '今日 '),
+                    const TextSpan(text: ' · '),
                     TextSpan(
                       text: '${today.orderCount}',
                       style: const TextStyle(color: AppColors.selected),
