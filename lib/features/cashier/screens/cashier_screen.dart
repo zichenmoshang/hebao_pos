@@ -138,10 +138,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     // 选中商品已从在售列表消失（停用）时不再回退到首个商品，返回 null
     final selectedName = selectedId == null
         ? null
-        : products
-              .where((p) => p.id == selectedId)
-              .firstOrNull
-              ?.name;
+        : products.where((p) => p.id == selectedId).firstOrNull?.name;
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -163,8 +160,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
               children: [
                 _TopBar(
                   today: today,
-                  pendingTakeoutCount:
-                      pendingTakeoutAsync.value?.length ?? 0,
+                  pendingTakeoutCount: pendingTakeoutAsync.value?.length ?? 0,
                   onOpenPending: () => PendingTakeoutSheet.show(context),
                 ),
                 _AmountPanel(order: order),
@@ -172,57 +168,60 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                   child: products.isEmpty
                       ? const _EmptyProductsView()
                       : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final spacing = UiScale.scale(10);
-                      final cellW =
-                          (constraints.maxWidth - spacing * 2) / 3;
-                      final rows = (products.length / 3).ceil();
+                          builder: (context, constraints) {
+                            final spacing = UiScale.scale(10);
+                            final cellW =
+                                (constraints.maxWidth - spacing * 2) / 3;
+                            final rows = (products.length / 3).ceil();
 
-                      double aspectRatio;
-                      bool scrollable;
-                      if (rows <= 3) {
-                        // 三排及以内：卡片高度精确适配可用空间，完整显示、不滚动
-                        final cellH =
-                            (constraints.maxHeight - (rows - 1) * spacing) /
-                                rows;
-                        aspectRatio = cellW / cellH;
-                        scrollable = false;
-                      } else {
-                        // 四排及以上：固定宽高比，超出部分滚动
-                        aspectRatio = 0.72;
-                        scrollable = true;
-                      }
+                            double aspectRatio;
+                            bool scrollable;
+                            if (rows <= 3) {
+                              // 三排及以内：卡片高度精确适配可用空间，完整显示、不滚动
+                              final cellH =
+                                  (constraints.maxHeight -
+                                      (rows - 1) * spacing) /
+                                  rows;
+                              aspectRatio = cellW / cellH;
+                              scrollable = false;
+                            } else {
+                              // 四排及以上：固定宽高比，超出部分滚动
+                              aspectRatio = 0.72;
+                              scrollable = true;
+                            }
 
-                      return GridView.builder(
-                        physics: scrollable
-                            ? null
-                            : const NeverScrollableScrollPhysics(),
-                        itemCount: products.length,
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: spacing,
-                          crossAxisSpacing: spacing,
-                          childAspectRatio: aspectRatio,
+                            return GridView.builder(
+                              physics: scrollable
+                                  ? null
+                                  : const NeverScrollableScrollPhysics(),
+                              itemCount: products.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: spacing,
+                                    crossAxisSpacing: spacing,
+                                    childAspectRatio: aspectRatio,
+                                  ),
+                              itemBuilder: (context, i) {
+                                final product = products[i];
+                                return ProductCard(
+                                  product: product,
+                                  dineQuantity: order.dineQuantityOf(
+                                    product.id,
+                                  ),
+                                  takeQuantity: order.takeQuantityOf(
+                                    product.id,
+                                  ),
+                                  selected: selectedId == product.id,
+                                  onTap: () {
+                                    AppHaptics.light(ref);
+                                    notifier.addOne(product);
+                                  },
+                                );
+                              },
+                            );
+                          },
                         ),
-                        itemBuilder: (context, i) {
-                          final product = products[i];
-                          return ProductCard(
-                            product: product,
-                            dineQuantity:
-                                order.dineQuantityOf(product.id),
-                            takeQuantity:
-                                order.takeQuantityOf(product.id),
-                            selected: selectedId == product.id,
-                            onTap: () {
-                              AppHaptics.light(ref);
-                              notifier.addOne(product);
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
                 ),
                 SizedBox(height: pad),
                 QuickQuantityBar(
@@ -259,8 +258,11 @@ class _EmptyProductsView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.inventory_2_outlined,
-              color: AppColors.textMuted, size: 48),
+          const Icon(
+            Icons.inventory_2_outlined,
+            color: AppColors.textMuted,
+            size: 48,
+          ),
           SizedBox(height: UiScale.scale(12)),
           Text(
             '暂无在售商品',
@@ -323,9 +325,7 @@ class _TopBar extends StatelessWidget {
                 vertical: UiScale.scale(5),
               ),
               decoration: BoxDecoration(
-                color: hasPending
-                    ? AppColors.selected
-                    : AppColors.button,
+                color: hasPending ? AppColors.selected : AppColors.button,
                 borderRadius: BorderRadius.circular(UiScale.scale(10)),
               ),
               child: Row(
@@ -334,9 +334,7 @@ class _TopBar extends StatelessWidget {
                   Icon(
                     Icons.shopping_bag_outlined,
                     size: UiScale.scale(18),
-                    color: hasPending
-                        ? Colors.white
-                        : AppColors.textMuted,
+                    color: hasPending ? Colors.white : AppColors.textMuted,
                   ),
                   SizedBox(width: UiScale.scale(4)),
                   Text(
@@ -344,9 +342,7 @@ class _TopBar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: UiScale.scale(15),
                       fontWeight: FontWeight.w700,
-                      color: hasPending
-                          ? Colors.white
-                          : AppColors.textMuted,
+                      color: hasPending ? Colors.white : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -354,43 +350,48 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  const TextSpan(text: '今日流水 '),
-                  TextSpan(
-                    text: formatCents(today.totalCents),
-                    style: const TextStyle(color: AppColors.selected),
-                  ),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: UiScale.scale(18),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w400,
+          // 窄屏下右侧文本经 Flexible 拿到有界宽度，FittedBox 才能真正缩小
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: '今日流水 '),
+                    TextSpan(
+                      text: formatCents(today.totalCents),
+                      style: const TextStyle(color: AppColors.selected),
+                    ),
+                  ],
+                ),
+                style: TextStyle(
+                  fontSize: UiScale.scale(18),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),
           SizedBox(width: UiScale.scale(16)),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  const TextSpan(text: '今日 '),
-                  TextSpan(
-                    text: '${today.orderCount}',
-                    style: const TextStyle(color: AppColors.selected),
-                  ),
-                  const TextSpan(text: ' 单'),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: UiScale.scale(18),
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w400,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: '今日 '),
+                    TextSpan(
+                      text: '${today.orderCount}',
+                      style: const TextStyle(color: AppColors.selected),
+                    ),
+                    const TextSpan(text: ' 单'),
+                  ],
+                ),
+                style: TextStyle(
+                  fontSize: UiScale.scale(18),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           ),
