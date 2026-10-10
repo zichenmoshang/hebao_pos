@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hebao_pos/features/cashier/providers/current_order_provider.dart';
+import 'package:hebao_pos/shared/models/order_line.dart';
 import 'package:hebao_pos/shared/models/product.dart';
 
 void main() {
@@ -77,14 +78,15 @@ void main() {
     expect(state.totalCents, 360);
   });
 
-  test('selectedQuantity 返回对应商品数量，未点商品为 0', () {
+  test('quantityOf 返回对应商品各通道数量，未点商品为 0', () {
     final notifier = container.read(currentOrderProvider.notifier);
     notifier.addOne(p1);
     notifier.addOne(p1);
 
     final state = container.read(currentOrderProvider);
-    expect(state.selectedQuantity(1), 2);
-    expect(state.selectedQuantity(3), 0);
+    expect(state.quantityOf(1, OrderChannel.dineIn), 2);
+    expect(state.quantityOf(1, OrderChannel.takeout), 0);
+    expect(state.quantityOf(3, OrderChannel.dineIn), 0);
   });
 
   test('setSelectedQuantity 负数与 0 一样移除并取消选中', () {
@@ -96,5 +98,57 @@ void main() {
     final state = container.read(currentOrderProvider);
     expect(state.lines, isEmpty);
     expect(state.selectedProductId, isNull);
+  });
+
+  group('堂食 / 打包通道', () {
+    test('默认堂食；切到打包后 addOne 与快捷数字落在打包行', () {
+      final notifier = container.read(currentOrderProvider.notifier);
+
+      notifier.addOne(p1);
+      notifier.addOne(p1);
+      notifier.setChannel(OrderChannel.takeout);
+      notifier.addOne(p1);
+      notifier.setSelectedQuantity(4);
+
+      final state = container.read(currentOrderProvider);
+      expect(state.lines, hasLength(2));
+      expect(state.dineQuantityOf(1), 2);
+      expect(state.takeQuantityOf(1), 4);
+      // 两行都计入总额
+      expect(state.totalCents, 480);
+    });
+
+    test('清除当前通道只移除该行，另一通道保留且不取消选中', () {
+      final notifier = container.read(currentOrderProvider.notifier);
+
+      notifier.addOne(p1);
+      notifier.setChannel(OrderChannel.takeout);
+      notifier.addOne(p1);
+      notifier.setSelectedQuantity(0);
+
+      final state = container.read(currentOrderProvider);
+      expect(state.takeQuantityOf(1), 0);
+      expect(state.dineQuantityOf(1), 1);
+      expect(state.selectedProductId, 1);
+    });
+
+    test('selectedQuantity 跟随当前通道；clear 后通道复位为堂食', () {
+      final notifier = container.read(currentOrderProvider.notifier);
+
+      notifier.addOne(p1);
+      notifier.setChannel(OrderChannel.takeout);
+      notifier.addOne(p1);
+      notifier.addOne(p1);
+
+      expect(container.read(currentOrderProvider).selectedQuantity, 2);
+
+      notifier.setChannel(OrderChannel.dineIn);
+      expect(container.read(currentOrderProvider).selectedQuantity, 1);
+
+      notifier.clear();
+      final state = container.read(currentOrderProvider);
+      expect(state.selectedChannel, OrderChannel.dineIn);
+      expect(state.lines, isEmpty);
+    });
   });
 }

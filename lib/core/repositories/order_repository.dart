@@ -35,6 +35,47 @@ class ProductSales {
   final int amountCents;
 }
 
+/// 单笔订单的明细行（订单详情展示用，含堂食/打包与交付状态）
+class OrderItemRecord {
+  const OrderItemRecord({
+    required this.name,
+    required this.quantity,
+    required this.amountCents,
+    required this.channel,
+    required this.isDelivered,
+  });
+
+  final String name;
+  final int quantity;
+  final int amountCents;
+  final OrderChannel channel;
+
+  /// 打包行是否已交付；堂食行恒为 false
+  final bool isDelivered;
+}
+
+/// 一条打包明细（待打包清单用），附带所属订单的下单时间
+class TakeoutItem {
+  const TakeoutItem({
+    required this.itemId,
+    required this.orderId,
+    required this.productName,
+    required this.quantity,
+    required this.orderCreatedAtMs,
+    this.deliveredAtMs,
+  });
+
+  final int itemId;
+  final int orderId;
+  final String productName;
+  final int quantity;
+  final int orderCreatedAtMs;
+  final int? deliveredAtMs;
+
+  DateTime get orderCreatedAt =>
+      DateTime.fromMillisecondsSinceEpoch(orderCreatedAtMs);
+}
+
 /// 一笔订单明细的导出行（含成交单价快照）
 class OrderItemDetail {
   const OrderItemDetail({
@@ -97,6 +138,7 @@ class OrderRepository {
                 unitPriceCents: line.product.priceCents,
                 quantity: line.quantity,
                 lineTotalCents: line.lineTotalCents,
+                channel: Value(line.channel.dbValue),
               ),
           ],
         );
@@ -224,20 +266,78 @@ class OrderRepository {
     ];
   }
 
-  /// 取某订单明细（商品名 x 数量）
-  Future<List<ProductSales>> itemsOfOrder(int orderId) async {
+  /// 取某订单明细（商品名 x 数量，含堂食/打包与交付状态）
+  Future<List<OrderItemRecord>> itemsOfOrder(int orderId) async {
     final rows = await (_db.select(_db.orderItems)
           ..where((t) => t.orderId.equals(orderId)))
         .get();
     return [
       for (final r in rows)
-        ProductSales(
-          productId: r.productId,
+        OrderItemRecord(
           name: r.productName,
           quantity: r.quantity,
           amountCents: r.lineTotalCents,
+          channel: OrderChannel.fromDb(r.channel),
+          isDelivered: r.deliveredAt != null,
         ),
     ];
+  }
+
+  /// 待打包清单：未交付的打包明细，按下单时间升序（先下单的先交付）
+  Future<List<TakeoutItem>> pendingTakeoutItems() async {
+    final items = _db.orderItems;
+    final orders = _db.orders;
+    final query = _db.select(items).join([
+      innerJoin(orders, orders.id.equalsExp(items.orderId)),
+    ])
+      ..where(items.channel.equals('takeout') & items.deliveredAt.isNull())
+      ..orderBy([OrderingTerm.asc(orders.createdAt)]);
+    final rows = await query.get();
+    return [
+      for (final row in rows)
+        _toTakeoutItem(row.readTable(items), row.readTable(orders)),
+    ];
+  }
+
+  /// 最近已交付的打包明细（清单内撤销用），按交付时间倒序
+  Future<List<TakeoutItem>> deliveredTakeoutItems({int limit = 20}) async {
+    final items = _db.orderItems;
+    final orders = _db.orders;
+    final query = _db.select(items).join([
+      innerJoin(orders, orders.id.equalsExp(items.orderId)),
+    ])
+      ..where(items.channel.equals('takeout') & items.deliveredAt.isNotNull())
+      ..orderBy([OrderingTerm.desc(items.deliveredAt)])
+      ..limit(limit);
+    final rows = await query.get();
+    return [
+      for (final row in rows)
+        _toTakeoutItem(row.readTable(items), row.readTable(orders)),
+    ];
+  }
+
+  /// 标记打包明细已交付
+  Future<void> markTakeoutDelivered(int itemId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await (_db.update(_db.orderItems)..where((t) => t.id.equals(itemId)))
+        .write(db.OrderItemsCompanion(deliveredAt: Value(now)));
+  }
+
+  /// 撤销交付：回到待打包状态
+  Future<void> markTakeoutUndelivered(int itemId) async {
+    await (_db.update(_db.orderItems)..where((t) => t.id.equals(itemId)))
+        .write(const db.OrderItemsCompanion(deliveredAt: Value(null)));
+  }
+
+  TakeoutItem _toTakeoutItem(db.OrderItem item, db.Order order) {
+    return TakeoutItem(
+      itemId: item.id,
+      orderId: item.orderId,
+      productName: item.productName,
+      quantity: item.quantity,
+      orderCreatedAtMs: order.createdAt,
+      deliveredAtMs: item.deliveredAt,
+    );
   }
 
   /// 一次性取多笔订单的全部明细（消除导出时逐订单查询的 N+1），

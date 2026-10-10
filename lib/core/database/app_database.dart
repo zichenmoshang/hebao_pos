@@ -23,7 +23,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +39,11 @@ class AppDatabase extends _$AppDatabase {
           // v1 -> v2：products 增加图片路径列
           if (from < 2) {
             await m.addColumn(products, products.imagePath);
+          }
+          // v2 -> v3：order_items 增加堂食/打包标记与打包交付时间
+          if (from < 3) {
+            await m.addColumn(orderItems, orderItems.channel);
+            await m.addColumn(orderItems, orderItems.deliveredAt);
           }
         },
       );

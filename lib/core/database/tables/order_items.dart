@@ -27,4 +27,10 @@ class OrderItems extends Table {
 
   /// 该行小计（分）
   IntColumn get lineTotalCents => integer()();
+
+  /// 堂食 / 打包：dine_in / takeout；历史数据默认堂食
+  TextColumn get channel => text().withDefault(const Constant('dine_in'))();
+
+  /// 打包行交付时间（Unix 毫秒）；仅 takeout 行有意义，null = 待交付
+  IntColumn get deliveredAt => integer().nullable()();
 }

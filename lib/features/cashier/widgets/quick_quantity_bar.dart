@@ -1,14 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../shared/models/order_line.dart';
 
-/// 快捷数量区：头部「清除 / 数量 / 提示 / ⌨」+ 2~9（语义为「设为 N」）。
+/// 快捷数量区：头部「清除 / 堂食·打包切换 / 数量 / 提示 / ⌨」+ 2~9（语义为「设为 N」）。
 /// 固定占位，未选中商品时弱化并显示引导文案，高度不跳动。
 class QuickQuantityBar extends StatelessWidget {
   const QuickQuantityBar({
     super.key,
     required this.hasSelection,
     required this.selectedName,
+    required this.channel,
+    required this.onChannelChanged,
     required this.onPick,
     required this.onClear,
     required this.onOpenKeyboard,
@@ -16,6 +19,8 @@ class QuickQuantityBar extends StatelessWidget {
 
   final bool hasSelection;
   final String? selectedName;
+  final OrderChannel channel;
+  final ValueChanged<OrderChannel> onChannelChanged;
   final ValueChanged<int> onPick;
   final VoidCallback onClear;
   final VoidCallback onOpenKeyboard;
@@ -62,6 +67,12 @@ class QuickQuantityBar extends StatelessWidget {
                 SizedBox(width: UiScale.scale(10)),
                 Container(width: 1, height: UiScale.scale(34), color: AppColors.border),
                 SizedBox(width: UiScale.scale(10)),
+                // 堂食 / 打包切换：决定点卡片 +1 与快捷数字落在哪个通道
+                _ChannelToggle(
+                  channel: channel,
+                  onChanged: onChannelChanged,
+                ),
+                SizedBox(width: UiScale.scale(10)),
                 Expanded(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -104,6 +115,57 @@ class QuickQuantityBar extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 堂食 / 打包两段切换：当前通道实心高亮
+class _ChannelToggle extends StatelessWidget {
+  const _ChannelToggle({required this.channel, required this.onChanged});
+
+  final OrderChannel channel;
+  final ValueChanged<OrderChannel> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.button,
+        borderRadius: BorderRadius.circular(UiScale.scale(10)),
+      ),
+      padding: EdgeInsets.all(UiScale.scale(3)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment('堂', OrderChannel.dineIn),
+          _segment('外', OrderChannel.takeout),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String label, OrderChannel value) {
+    final active = channel == value;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: UiScale.scale(12),
+          vertical: UiScale.scale(6),
+        ),
+        decoration: BoxDecoration(
+          color: active ? AppColors.selected : Colors.transparent,
+          borderRadius: BorderRadius.circular(UiScale.scale(8)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: UiScale.scale(16),
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : AppColors.textMuted,
+          ),
         ),
       ),
     );

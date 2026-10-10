@@ -97,7 +97,7 @@ database (DAO / SQLite)
 
 1. 收银页访问 `activeProductsProvider` → 经 repository 惰性打开数据库（首次启动写入 5 个商品种子）→ 加载在售商品列表
 2. 收银页通过该 provider 渲染商品网格（上图下文；无图显示占位）
-3. 点击商品 → `currentOrderNotifier` 修改内存中订单行（商品 id、数量）
+3. 点击商品 → `currentOrderNotifier` 修改内存中订单行（商品 id、数量、堂食/打包通道）
 4. 金额面板监听订单状态，实时聚合总价（零延迟）
 5. 结账 → `orderRepository` 在一个事务内写入 `orders` 与 `order_items` → 清空内存订单 → 当日流水 invalidate 重算
 6. 商品管理经 `productRepository` 维护商品（新增 / 改名 / 改价 / 改单位 / 停用启用 / 拖拽重排）；图片经 `ProductImageService` 拍照或相册选取、压缩后存应用文档目录，数据库仅存路径；抽屉关闭（`onDrawerChanged`）时收银页 invalidate 商品与流水

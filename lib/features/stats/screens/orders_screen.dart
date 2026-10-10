@@ -6,6 +6,8 @@ import '../../../app/theme.dart';
 import '../../../core/repositories/order_repository.dart';
 import '../../../core/utils/haptics.dart';
 import '../../../core/utils/money.dart';
+import '../../../shared/models/order_line.dart';
+import '../../cashier/providers/pending_takeout_provider.dart';
 import '../../cashier/providers/today_summary_provider.dart';
 import '../providers/stats_providers.dart';
 
@@ -76,6 +78,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     ref.invalidate(statsDailyProductQuantityProvider);
     // 收银页「今日流水」常驻监听，删单后必须显式刷新，否则显示旧值
     ref.invalidate(todaySummaryProvider);
+    // 级联删除可能清掉未交付的打包明细
+    ref.invalidate(pendingTakeoutProvider);
+    ref.invalidate(deliveredTakeoutProvider);
   }
 
   @override
@@ -151,6 +156,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   }
 }
 
+/// 明细行文案：打包行标注「（打包）/（打包·待取）」，堂食行不标注
+String _itemLabel(OrderItemRecord it) {
+  final base = '${it.name} × ${it.quantity}';
+  return switch (it.channel) {
+    OrderChannel.takeout =>
+      it.isDelivered ? '$base（打包）' : '$base（打包·待取）',
+    OrderChannel.dineIn => base,
+  };
+}
+
 class _OrderCard extends ConsumerWidget {
   const _OrderCard({required this.order});
 
@@ -219,7 +234,7 @@ class _OrderCard extends ConsumerWidget {
                                   MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${it.name} × ${it.quantity}',
+                                  _itemLabel(it),
                                   style: TextStyle(
                                     fontSize: UiScale.scale(14),
                                     color: AppColors.textSecondary,

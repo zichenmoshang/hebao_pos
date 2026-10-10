@@ -12,7 +12,9 @@ import '../../../core/utils/money.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../stats/providers/stats_providers.dart';
 import '../providers/current_order_provider.dart';
+import '../providers/pending_takeout_provider.dart';
 import '../providers/today_summary_provider.dart';
+import '../widgets/pending_takeout_sheet.dart';
 import '../widgets/product_card.dart';
 import '../widgets/quantity_pad_sheet.dart';
 import '../widgets/quick_quantity_bar.dart';
@@ -58,7 +60,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     if (id == null) return;
     final result = await QuantityPadSheet.show(
       context,
-      initial: order.selectedQuantity(id).clamp(1, 1 << 30),
+      initial: order.selectedQuantity.clamp(1, 1 << 30),
     );
     if (result != null) {
       ref.read(currentOrderProvider.notifier).setSelectedQuantity(result);
@@ -101,6 +103,8 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
       notifier.clear();
       if (mounted) {
         ref.invalidate(todaySummaryProvider);
+        // 新结账单可能含打包行，待打包角标与清单立即刷新
+        ref.invalidate(pendingTakeoutProvider);
         // 统计页 provider 无监听时仍缓存，结账后重进统计页应看到新数据
         ref.invalidate(statsSummaryProvider);
         ref.invalidate(statsDailyRevenueProvider);
@@ -124,6 +128,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     final productsAsync = ref.watch(activeProductsProvider);
     final order = ref.watch(currentOrderProvider);
     final todayAsync = ref.watch(todaySummaryProvider);
+    final pendingTakeoutAsync = ref.watch(pendingTakeoutProvider);
     final notifier = ref.read(currentOrderProvider.notifier);
     final pad = UiScale.scale(12);
 
@@ -160,7 +165,12 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _TopBar(today: today),
+                _TopBar(
+                  today: today,
+                  pendingTakeoutCount:
+                      pendingTakeoutAsync.value?.length ?? 0,
+                  onOpenPending: () => PendingTakeoutSheet.show(context),
+                ),
                 _AmountPanel(order: order),
                 Expanded(
                   child: products.isEmpty
@@ -203,8 +213,10 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                           final product = products[i];
                           return ProductCard(
                             product: product,
-                            quantity:
-                                order.selectedQuantity(product.id),
+                            dineQuantity:
+                                order.dineQuantityOf(product.id),
+                            takeQuantity:
+                                order.takeQuantityOf(product.id),
                             selected: selectedId == product.id,
                             onTap: () {
                               AppHaptics.light(ref);
@@ -220,6 +232,8 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                 QuickQuantityBar(
                   hasSelection: selectedName != null,
                   selectedName: selectedName,
+                  channel: order.selectedChannel,
+                  onChannelChanged: notifier.setChannel,
                   onPick: notifier.setSelectedQuantity,
                   onClear: () => notifier.setSelectedQuantity(0),
                   onOpenKeyboard: _openKeyboard,
@@ -273,14 +287,23 @@ class _EmptyProductsView extends StatelessWidget {
   }
 }
 
-/// 顶部栏：菜单按钮 + 当日流水（金额 / 订单数）
+/// 顶部栏：菜单按钮 + 待打包入口 + 当日流水（金额 / 订单数）
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.today});
+  const _TopBar({
+    required this.today,
+    required this.pendingTakeoutCount,
+    required this.onOpenPending,
+  });
 
   final OrderSummary today;
 
+  /// 待交付的打包明细条数；0 时入口弱化但常驻，避免布局跳动
+  final int pendingTakeoutCount;
+  final VoidCallback onOpenPending;
+
   @override
   Widget build(BuildContext context) {
+    final hasPending = pendingTakeoutCount > 0;
     return SizedBox(
       height: UiScale.scale(40),
       child: Row(
@@ -292,6 +315,45 @@ class _TopBar extends StatelessWidget {
                 Icons.menu,
                 size: UiScale.scale(28),
                 color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          SizedBox(width: UiScale.scale(12)),
+          GestureDetector(
+            onTap: onOpenPending,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: UiScale.scale(10),
+                vertical: UiScale.scale(5),
+              ),
+              decoration: BoxDecoration(
+                color: hasPending
+                    ? AppColors.selected
+                    : AppColors.button,
+                borderRadius: BorderRadius.circular(UiScale.scale(10)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: UiScale.scale(18),
+                    color: hasPending
+                        ? Colors.white
+                        : AppColors.textMuted,
+                  ),
+                  SizedBox(width: UiScale.scale(4)),
+                  Text(
+                    '待打包 $pendingTakeoutCount',
+                    style: TextStyle(
+                      fontSize: UiScale.scale(15),
+                      fontWeight: FontWeight.w700,
+                      color: hasPending
+                          ? Colors.white
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

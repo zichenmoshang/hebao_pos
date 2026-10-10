@@ -13,13 +13,19 @@ class ProductCard extends StatelessWidget {
   const ProductCard({
     super.key,
     required this.product,
-    required this.quantity,
+    required this.dineQuantity,
+    required this.takeQuantity,
     required this.selected,
     required this.onTap,
   });
 
   final Product product;
-  final int quantity;
+
+  /// 堂食数量
+  final int dineQuantity;
+
+  /// 打包数量
+  final int takeQuantity;
   final bool selected;
   final VoidCallback onTap;
 
@@ -33,9 +39,18 @@ class ProductCard extends StatelessWidget {
     6: Icons.rice_bowl,
   };
 
+  /// 角标文案：堂/外拆分时两个都显示，单通道时保持简洁
+  String get _badgeText {
+    if (dineQuantity > 0 && takeQuantity > 0) {
+      return '堂$dineQuantity 外$takeQuantity';
+    }
+    if (takeQuantity > 0) return '外$takeQuantity';
+    return '$dineQuantity';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final active = quantity > 0;
+    final active = dineQuantity + takeQuantity > 0;
     return GestureDetector(
       onTap: onTap,
       child: CustomPaint(
@@ -99,10 +114,10 @@ class ProductCard extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            '$quantity',
+                            _badgeText,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: UiScale.scale(14),
+                              fontSize: UiScale.scale(13),
                               fontWeight: FontWeight.w800,
                             ),
                           ),
