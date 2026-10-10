@@ -27,22 +27,22 @@ class QuickQuantityBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: hasSelection ? 1 : 0.5,
-      child: Container(
-        padding: EdgeInsets.all(UiScale.scale(12)),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(UiScale.scale(20)),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                // 「清除」描边按钮：将当前选中商品数量设为 0
-                OutlinedButton(
+    return Container(
+      padding: EdgeInsets.all(UiScale.scale(12)),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(UiScale.scale(20)),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              // 依赖选中态的部分未选中时弱化；堂/外是全局模式，常驻高亮
+              _DimWhenIdle(
+                dim: !hasSelection,
+                child: OutlinedButton(
                   onPressed: hasSelection ? onClear : null,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
@@ -50,11 +50,14 @@ class QuickQuantityBar extends StatelessWidget {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: EdgeInsets.symmetric(
-                        horizontal: UiScale.scale(14), vertical: UiScale.scale(8)),
+                      horizontal: UiScale.scale(14),
+                      vertical: UiScale.scale(8),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(UiScale.scale(10)),
                     ),
                   ),
+                  // 「清除」描边按钮：将当前选中商品当前通道数量设为 0
                   child: Text(
                     '清除',
                     style: TextStyle(
@@ -64,16 +67,20 @@ class QuickQuantityBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: UiScale.scale(10)),
-                Container(width: 1, height: UiScale.scale(34), color: AppColors.border),
-                SizedBox(width: UiScale.scale(10)),
-                // 堂食 / 打包切换：决定点卡片 +1 与快捷数字落在哪个通道
-                _ChannelToggle(
-                  channel: channel,
-                  onChanged: onChannelChanged,
-                ),
-                SizedBox(width: UiScale.scale(10)),
-                Expanded(
+              ),
+              SizedBox(width: UiScale.scale(10)),
+              Container(
+                width: 1,
+                height: UiScale.scale(34),
+                color: AppColors.border,
+              ),
+              SizedBox(width: UiScale.scale(10)),
+              // 堂食 / 打包切换：决定点卡片 +1 与快捷数字落在哪个通道，不置灰
+              _ChannelToggle(channel: channel, onChanged: onChannelChanged),
+              SizedBox(width: UiScale.scale(10)),
+              Expanded(
+                child: _DimWhenIdle(
+                  dim: !hasSelection,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -87,24 +94,33 @@ class QuickQuantityBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: UiScale.scale(8)),
-                _QuickSheetButton(onTap: hasSelection ? onOpenQuickSheet : null),
-              ],
-            ),
-            SizedBox(height: UiScale.scale(12)),
-            for (final row in [
-              [2, 3, 4, 5],
-              [6, 7, 8, 9],
-            ])
-              Padding(
-                padding: EdgeInsets.only(bottom: UiScale.scale(10)),
+              ),
+              SizedBox(width: UiScale.scale(8)),
+              _DimWhenIdle(
+                dim: !hasSelection,
+                child: _QuickSheetButton(
+                  onTap: hasSelection ? onOpenQuickSheet : null,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: UiScale.scale(12)),
+          for (final row in [
+            [2, 3, 4, 5],
+            [6, 7, 8, 9],
+          ])
+            Padding(
+              padding: EdgeInsets.only(bottom: UiScale.scale(10)),
+              child: _DimWhenIdle(
+                dim: !hasSelection,
                 child: Row(
                   children: [
                     for (final n in row)
                       Expanded(
                         child: Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: UiScale.scale(7)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: UiScale.scale(7),
+                          ),
                           child: _Key(
                             label: '$n',
                             onTap: hasSelection ? () => onPick(n) : null,
@@ -114,10 +130,23 @@ class QuickQuantityBar extends StatelessWidget {
                   ],
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
+  }
+}
+
+/// 未选中商品时半透明显示（交互由调用方一并禁用）
+class _DimWhenIdle extends StatelessWidget {
+  const _DimWhenIdle({required this.dim, required this.child});
+
+  final bool dim;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(opacity: dim ? 0.5 : 1, child: child);
   }
 }
 
@@ -191,8 +220,11 @@ class _QuickSheetButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(UiScale.scale(10)),
         ),
       ),
-      child: Icon(Icons.grid_view_rounded,
-          size: UiScale.scale(24), color: AppColors.textPrimary),
+      child: Icon(
+        Icons.grid_view_rounded,
+        size: UiScale.scale(24),
+        color: AppColors.textPrimary,
+      ),
     );
   }
 }
