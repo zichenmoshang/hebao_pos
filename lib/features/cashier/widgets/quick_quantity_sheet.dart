@@ -12,6 +12,7 @@ class QuickQuantitySheet extends StatelessWidget {
     return showModalBottomSheet<int>(
       context: context,
       backgroundColor: AppColors.surfaceElevated,
+      isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(UiScale.scale(24)),
@@ -21,53 +22,69 @@ class QuickQuantitySheet extends StatelessWidget {
     );
   }
 
+  static const _rows = [
+    [10, 11, 12, 13],
+    [14, 15, 16, 17],
+    [18, 19, 20, 21],
+    [22, 23, 24, 25],
+    [26, 27, 28, 29],
+  ];
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(UiScale.scale(999)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 键高按可用高度自适应：大屏撑到 64，小窗压缩不溢出（共 6 排键）
+          final spacing = UiScale.scale(12);
+          final fixed = 4 + spacing + spacing * _rows.length; // 把手 + 间距
+          final keyH = ((constraints.maxHeight - fixed) / (_rows.length + 1))
+              .clamp(UiScale.scale(36), UiScale.scale(64));
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(UiScale.scale(999)),
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(height: spacing),
+                // 4 列大键排布：弹层空间充足，键宽、键高都放大，湿手也好按
+                for (final row in _rows)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: spacing),
+                    child: Row(
+                      children: [
+                        for (final n in row)
+                          Expanded(
+                            child: _QuickKey(
+                              label: '$n',
+                              height: keyH,
+                              onTap: () => Navigator.pop(context, n),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                // 30 独占一行全宽：最大单值，放最底部最好够
+                _QuickKey(
+                  label: '30',
+                  height: keyH,
+                  onTap: () => Navigator.pop(context, 30),
+                ),
+              ],
             ),
-            SizedBox(height: UiScale.scale(12)),
-            // 4 列大键排布：弹层空间充足，键宽、键高都放大，湿手也好按
-            for (final row in [
-              [10, 11, 12, 13],
-              [14, 15, 16, 17],
-              [18, 19, 20, 21],
-              [22, 23, 24, 25],
-              [26, 27, 28, 29],
-            ])
-              Padding(
-                padding: EdgeInsets.only(bottom: UiScale.scale(12)),
-                child: Row(
-                  children: [
-                    for (final n in row)
-                      Expanded(
-                        child: _QuickKey(
-                          label: '$n',
-                          onTap: () => Navigator.pop(context, n),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            // 30 独占一行全宽：最大单值，放最底部最好够
-            _QuickKey(label: '30', onTap: () => Navigator.pop(context, 30)),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -75,9 +92,14 @@ class QuickQuantitySheet extends StatelessWidget {
 
 /// 快捷档位大键：按下轻缩放
 class _QuickKey extends StatefulWidget {
-  const _QuickKey({required this.label, required this.onTap});
+  const _QuickKey({
+    required this.label,
+    required this.height,
+    required this.onTap,
+  });
 
   final String label;
+  final double height;
   final VoidCallback onTap;
 
   @override
@@ -100,7 +122,7 @@ class _QuickKeyState extends State<_QuickKey> {
           scale: _pressed ? 0.92 : 1,
           duration: const Duration(milliseconds: 90),
           child: Container(
-            height: UiScale.scale(64),
+            height: widget.height,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.button,
