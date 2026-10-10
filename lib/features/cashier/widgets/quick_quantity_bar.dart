@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../../../shared/models/order_line.dart';
 
-/// 快捷数量区：头部「清除 / 堂食·打包切换 / 数量 / 提示 / ⌨」+ 2~9（语义为「设为 N」）。
+/// 快捷数量区：头部「清除 / 堂食·打包切换 / 数量 / 提示 / 大数量入口」+ 2~9（语义为「设为 N」）。
 /// 固定占位，未选中商品时弱化并显示引导文案，高度不跳动。
 class QuickQuantityBar extends StatelessWidget {
   const QuickQuantityBar({
@@ -14,7 +14,7 @@ class QuickQuantityBar extends StatelessWidget {
     required this.onChannelChanged,
     required this.onPick,
     required this.onClear,
-    required this.onOpenKeyboard,
+    required this.onOpenQuickSheet,
   });
 
   final bool hasSelection;
@@ -23,7 +23,7 @@ class QuickQuantityBar extends StatelessWidget {
   final ValueChanged<OrderChannel> onChannelChanged;
   final ValueChanged<int> onPick;
   final VoidCallback onClear;
-  final VoidCallback onOpenKeyboard;
+  final VoidCallback onOpenQuickSheet;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +88,7 @@ class QuickQuantityBar extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: UiScale.scale(8)),
-                _KeyboardButton(onTap: hasSelection ? onOpenKeyboard : null),
+                _QuickSheetButton(onTap: hasSelection ? onOpenQuickSheet : null),
               ],
             ),
             SizedBox(height: UiScale.scale(12)),
@@ -172,9 +172,9 @@ class _ChannelToggle extends StatelessWidget {
   }
 }
 
-/// 头部右侧的方形键盘图标按钮
-class _KeyboardButton extends StatelessWidget {
-  const _KeyboardButton({required this.onTap});
+/// 头部右侧的方形大数量入口图标按钮（打开 10~30 快捷点选弹层）
+class _QuickSheetButton extends StatelessWidget {
+  const _QuickSheetButton({required this.onTap});
 
   final VoidCallback? onTap;
 
@@ -191,7 +191,7 @@ class _KeyboardButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(UiScale.scale(10)),
         ),
       ),
-      child: Icon(Icons.keyboard_outlined,
+      child: Icon(Icons.grid_view_rounded,
           size: UiScale.scale(24), color: AppColors.textPrimary),
     );
   }

@@ -16,8 +16,8 @@ import '../providers/pending_takeout_provider.dart';
 import '../providers/today_summary_provider.dart';
 import '../widgets/pending_takeout_sheet.dart';
 import '../widgets/product_card.dart';
-import '../widgets/quantity_pad_sheet.dart';
 import '../widgets/quick_quantity_bar.dart';
+import '../widgets/quick_quantity_sheet.dart';
 
 /// 收银主页：整块屏幕留给计价，低频操作收入抽屉，无底部 Tab
 class CashierScreen extends ConsumerStatefulWidget {
@@ -54,14 +54,10 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
     super.dispose();
   }
 
-  Future<void> _openKeyboard() async {
+  Future<void> _openQuickSheet() async {
     final order = ref.read(currentOrderProvider);
-    final id = order.selectedProductId;
-    if (id == null) return;
-    final result = await QuantityPadSheet.show(
-      context,
-      initial: order.selectedQuantity.clamp(1, 1 << 30),
-    );
+    if (order.selectedProductId == null) return;
+    final result = await QuickQuantitySheet.show(context);
     if (result != null) {
       ref.read(currentOrderProvider.notifier).setSelectedQuantity(result);
     }
@@ -236,7 +232,7 @@ class _CashierScreenState extends ConsumerState<CashierScreen> {
                   onChannelChanged: notifier.setChannel,
                   onPick: notifier.setSelectedQuantity,
                   onClear: () => notifier.setSelectedQuantity(0),
-                  onOpenKeyboard: _openKeyboard,
+                  onOpenQuickSheet: _openQuickSheet,
                 ),
                 SizedBox(height: pad),
                 _CheckoutBar(
