@@ -353,9 +353,8 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-          const Spacer(),
           // 合并为一条文本独占剩余空间：自然大小放下，放不下时 FittedBox 整体缩小
-          Flexible(
+          Expanded(
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
